@@ -75,7 +75,7 @@ PEDAGOGICAL PRINCIPLES (embed these naturally, don't lecture about them):
 - Active learning over passive listening
 - Check understanding frequently
 - Use local, familiar examples (food, games, markets, family)
-- Activities that work with zero materials or found objects (stones, leaves, paper scraps)
+- Activities that work with zero materials or everyday items (stones, leaves, recycled paper)
 - Clear, simple language
 - Realistic timing
 
@@ -136,7 +136,7 @@ def build_lesson_prompt(params: dict) -> str:
     if materials == 'none':
         prompt_parts.append("Available materials: NONE - design activities using only voice, movement, and imagination")
     elif materials == 'basic':
-        prompt_parts.append("Available materials: Basic only - chalk/board, paper scraps, found objects (stones, sticks, leaves)")
+        prompt_parts.append("Available materials: Basic only - chalk/board, recycled paper, everyday items (stones, sticks, leaves)")
     elif materials == 'standard':
         prompt_parts.append("Available materials: Standard classroom - chalk/board, paper, pencils, basic supplies")
     
@@ -687,11 +687,23 @@ async def new_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await update.message.reply_text(
-        "📚 *Let's create a lesson plan!*\n\nWhat subject?",
-        reply_markup=reply_markup,
-        parse_mode='Markdown'
-    )
+    text = "📚 *Let's create a lesson plan!*\n\nWhat subject?"
+    
+    # Check if this came from a callback (button press) or direct command
+    if update.callback_query:
+        # From button press - edit the existing message
+        await update.callback_query.edit_message_text(
+            text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+    elif update.message:
+        # From /new command - send new message
+        await update.message.reply_text(
+            text,
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
 
 
 async def quick_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -778,8 +790,96 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         session['params']['subject'] = subject
         session['state'] = 'awaiting_topic'
+        
+        # Offer popular topic suggestions based on subject
+        topic_suggestions = {
+            "Mathematics": [
+                ("Addition/Subtraction", "topic_Addition and Subtraction"),
+                ("Multiplication", "topic_Multiplication"),
+                ("Fractions", "topic_Fractions"),
+                ("Shapes & Geometry", "topic_Shapes and Geometry"),
+            ],
+            "Reading": [
+                ("Reading Comprehension", "topic_Reading Comprehension"),
+                ("Phonics", "topic_Phonics and Letter Sounds"),
+                ("Storytelling", "topic_Storytelling"),
+                ("Vocabulary", "topic_Building Vocabulary"),
+            ],
+            "Science": [
+                ("Plants & Animals", "topic_Plants and Animals"),
+                ("Human Body", "topic_The Human Body"),
+                ("Water Cycle", "topic_Water Cycle"),
+                ("Simple Machines", "topic_Simple Machines"),
+            ],
+            "Social Studies": [
+                ("Community Helpers", "topic_Community Helpers"),
+                ("Maps & Directions", "topic_Maps and Directions"),
+                ("Family & Culture", "topic_Family and Culture"),
+                ("Environment", "topic_Caring for Environment"),
+            ],
+            "Arts": [
+                ("Drawing", "topic_Drawing and Sketching"),
+                ("Music & Rhythm", "topic_Music and Rhythm"),
+                ("Drama/Role Play", "topic_Drama and Role Play"),
+                ("Crafts", "topic_Simple Crafts"),
+            ],
+            "Language": [
+                ("Sentence Building", "topic_Building Sentences"),
+                ("Speaking Practice", "topic_Speaking Practice"),
+                ("Writing Stories", "topic_Writing Short Stories"),
+                ("Grammar Basics", "topic_Basic Grammar"),
+            ],
+        }
+        
+        suggestions = topic_suggestions.get(subject, [
+            ("Custom topic", "topic_custom"),
+        ])
+        
+        keyboard = []
+        for label, callback in suggestions:
+            keyboard.append([InlineKeyboardButton(label, callback_data=callback)])
+        keyboard.append([InlineKeyboardButton("✏️ Type my own topic...", callback_data="topic_custom")])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
-            f"📚 Subject: *{subject}*\n\nWhat specific topic?",
+            f"📚 Subject: *{subject}*\n\nPick a topic or type your own:",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Topic selection
+    if data.startswith("topic_"):
+        topic = data.replace("topic_", "")
+        if topic == "custom":
+            session['state'] = 'awaiting_topic'
+            await query.edit_message_text(
+                f"📚 Subject: *{session['params'].get('subject', 'General')}*\n\n✏️ Type your topic:"
+            , parse_mode='Markdown')
+            return
+        
+        session['params']['topic'] = topic
+        session['state'] = 'awaiting_ages'
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("5-7 years", callback_data="ages_5-7"),
+                InlineKeyboardButton("7-9 years", callback_data="ages_7-9"),
+            ],
+            [
+                InlineKeyboardButton("9-11 years", callback_data="ages_9-11"),
+                InlineKeyboardButton("11-13 years", callback_data="ages_11-13"),
+            ],
+            [
+                InlineKeyboardButton("13-15 years", callback_data="ages_13-15"),
+                InlineKeyboardButton("15+ years", callback_data="ages_15-18"),
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            f"📚 *{session['params'].get('subject')}*: {topic}\n\nWhat age are your students?",
+            reply_markup=reply_markup,
             parse_mode='Markdown'
         )
         return
@@ -856,7 +956,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         keyboard = [
             [InlineKeyboardButton("None - voice & movement only", callback_data="materials_none")],
-            [InlineKeyboardButton("Basic - chalk, paper scraps, found objects", callback_data="materials_basic")],
+            [InlineKeyboardButton("Basic - chalk, recycled paper, everyday items", callback_data="materials_basic")],
             [InlineKeyboardButton("Standard - paper, pencils, board", callback_data="materials_standard")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1289,7 +1389,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         keyboard = [
             [InlineKeyboardButton("None - voice & movement only", callback_data="materials_none")],
-            [InlineKeyboardButton("Basic - chalk, paper scraps, found objects", callback_data="materials_basic")],
+            [InlineKeyboardButton("Basic - chalk, recycled paper, everyday items", callback_data="materials_basic")],
             [InlineKeyboardButton("Standard - paper, pencils, board", callback_data="materials_standard")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
