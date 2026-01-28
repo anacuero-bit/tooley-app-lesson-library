@@ -224,8 +224,8 @@ class LessonPDF(FPDF):
     def header(self):
         self.set_font('Helvetica', 'B', 10)
         self.set_text_color(30, 123, 70)  # Green
-        self.cell(0, 10, 'Tooley - Lesson Plan', align='C', ln=True)
-        self.ln(5)
+        self.cell(0, 10, 'Tooley - Lesson Plan', align='C')
+        self.ln(15)
     
     def footer(self):
         self.set_y(-15)
@@ -243,7 +243,8 @@ class LessonPDF(FPDF):
         topic = params.get('topic', 'Lesson Plan')
         subject = params.get('subject', '')
         title = f"{subject}: {topic}" if subject else topic
-        self.cell(0, 10, self._safe_text(title), ln=True)
+        # Use multi_cell for title to handle long titles
+        self.multi_cell(0, 10, self._safe_text(title[:80]))  # Truncate if too long
         
         # Metadata line
         self.set_font('Helvetica', '', 10)
@@ -256,7 +257,7 @@ class LessonPDF(FPDF):
         if params.get('country'):
             meta_parts.append(params['country'])
         if meta_parts:
-            self.cell(0, 6, " | ".join(meta_parts), ln=True)
+            self.multi_cell(0, 6, " | ".join(meta_parts))
         
         self.ln(5)
         
@@ -271,24 +272,27 @@ class LessonPDF(FPDF):
                 self.ln(3)
                 continue
             
+            # Sanitize line first
+            safe_line = self._safe_text(line)
+            
             # Detect headers (lines in ALL CAPS or ending with :)
             if line.isupper() or (line.endswith(':') and len(line) < 50):
                 self.ln(3)
                 self.set_font('Helvetica', 'B', 11)
                 self.set_text_color(30, 123, 70)
-                self.multi_cell(0, 6, self._safe_text(line))
+                self.multi_cell(0, 6, safe_line)
                 self.set_font('Helvetica', '', 11)
                 self.set_text_color(26, 26, 46)
-            # Bullet points
+            # Bullet points - use text indent instead of cell
             elif line.startswith('- ') or line.startswith('• ') or line.startswith('* '):
-                self.cell(5)  # Indent
-                self.multi_cell(0, 6, self._safe_text('• ' + line[2:]))
+                bullet_text = '  - ' + self._safe_text(line[2:])
+                self.multi_cell(0, 6, bullet_text)
             # Numbered items
             elif len(line) > 2 and line[0].isdigit() and line[1] in '.):':
-                self.multi_cell(0, 6, self._safe_text(line))
+                self.multi_cell(0, 6, safe_line)
             # Regular text
             else:
-                self.multi_cell(0, 6, self._safe_text(line))
+                self.multi_cell(0, 6, safe_line)
     
     def _safe_text(self, text: str) -> str:
         """Convert text to safe ASCII for PDF."""
