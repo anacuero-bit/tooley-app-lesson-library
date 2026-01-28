@@ -60,22 +60,22 @@ groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 # SYSTEM PROMPT - THE HEART OF THE BOT
 # ============================================================================
 
-LESSON_SYSTEM_PROMPT = """You are an expert curriculum designer specializing in creating lesson plans for teachers in low-resource educational settings around the world.
+LESSON_SYSTEM_PROMPT = """You are an expert curriculum designer specializing in creating practical, engaging lesson plans for teachers around the world.
 
 CONTEXT:
-You're creating lessons for teachers who work in informal schools, low-cost private schools, and community learning centers—often in India, Kenya, Nigeria, Ghana, Philippines, and similar contexts. These teachers:
-- May not have formal teaching degrees
-- Work with limited or no materials (no projectors, sometimes no electricity)
-- Have large class sizes (25-40+ students)
-- Are resourceful and dedicated
+You're creating lessons for dedicated teachers who work in various school settings. These teachers:
+- May teach in well-resourced or resource-limited environments
+- Often have large class sizes (25-40+ students)
+- Are resourceful, creative, and dedicated
 - Need practical, immediately usable content
+- Value activities that engage all students
 
 PEDAGOGICAL PRINCIPLES (embed these naturally, don't lecture about them):
 - Start with what students already know (connect to daily life)
 - Active learning over passive listening
 - Check understanding frequently
 - Use local, familiar examples (food, games, markets, family)
-- Activities that work with zero materials or everyday items (stones, leaves, recycled paper)
+- Activities that can work with or without materials
 - Clear, simple language
 - Realistic timing
 
@@ -87,14 +87,14 @@ When a country/region is specified, use culturally relevant examples:
 - Universal: use generic examples that work anywhere
 
 OUTPUT STRUCTURE:
-Generate lesson plans with clear sections. Be concise but complete. Every activity must be doable with minimal resources.
+Generate lesson plans with clear sections. Be concise but complete. Focus on activities that engage students actively.
 
 TONE:
 Warm, practical, encouraging. You're a helpful colleague, not a textbook. Use "you" and "your students" naturally.
 
 IMPORTANT:
-- Never suggest materials the teacher won't have (no smartboards, printed worksheets, colored markers)
-- Always include at least one activity that needs ZERO materials
+- Match materials to what the teacher specified they have available
+- Always include engaging activities that get students participating
 - Time estimates must be realistic
 - Include what to say/ask, not just what to do
 - Add 1-2 "teacher tips" for common challenges"""
@@ -134,11 +134,11 @@ def build_lesson_prompt(params: dict) -> str:
     # Available materials
     materials = params.get('materials', 'minimal')
     if materials == 'none':
-        prompt_parts.append("Available materials: NONE - design activities using only voice, movement, and imagination")
+        prompt_parts.append("Available materials: No physical materials - design activities using voice, movement, games, and imagination only")
     elif materials == 'basic':
-        prompt_parts.append("Available materials: Basic only - chalk/board, recycled paper, everyday items (stones, sticks, leaves)")
+        prompt_parts.append("Available materials: Basic supplies - chalkboard or whiteboard, paper, pencils")
     elif materials == 'standard':
-        prompt_parts.append("Available materials: Standard classroom - chalk/board, paper, pencils, basic supplies")
+        prompt_parts.append("Available materials: Full classroom - worksheets, art supplies, manipulatives, varied resources")
     
     # Teaching style preference
     style = params.get('style')
@@ -338,6 +338,43 @@ def create_lesson_pdf(content: str, params: dict) -> BytesIO:
     pdf_buffer.seek(0)
     
     return pdf_buffer
+
+
+# ============================================================================
+# UX HELPERS
+# ============================================================================
+
+def build_selection_summary(params: dict) -> str:
+    """Build a visual summary of selections made so far."""
+    lines = ["━━━━ *Your Lesson* ━━━━"]
+    
+    if params.get('subject'):
+        lines.append(f"📚 Subject: {params['subject']}")
+    if params.get('topic'):
+        lines.append(f"📝 Topic: {params['topic']}")
+    if params.get('ages'):
+        lines.append(f"👶 Ages: {params['ages']}")
+    if params.get('duration'):
+        lines.append(f"⏱ Duration: {params['duration']} min")
+    if params.get('country'):
+        lines.append(f"📍 Location: {params['country']}")
+    if params.get('materials'):
+        materials_map = {
+            'none': '🎭 No materials',
+            'basic': '📝 Basic supplies', 
+            'standard': '📦 Full classroom'
+        }
+        lines.append(f"📦 Materials: {materials_map.get(params['materials'], params['materials'])}")
+    if params.get('style'):
+        style_map = {
+            'interactive': '🎮 Interactive',
+            'structured': '📋 Structured',
+            'storytelling': '📖 Story-based'
+        }
+        lines.append(f"🎯 Style: {style_map.get(params['style'], params['style'])}")
+    
+    lines.append("━━━━━━━━━━━━━━━━━━")
+    return "\n".join(lines)
 
 
 # ============================================================================
@@ -845,8 +882,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("✏️ Type my own topic...", callback_data="topic_custom")])
         
         reply_markup = InlineKeyboardMarkup(keyboard)
+        summary = build_selection_summary(session['params'])
         await query.edit_message_text(
-            f"📚 Subject: *{subject}*\n\nPick a topic or type your own:",
+            f"{summary}\n\n📝 *Pick a topic or type your own:*",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -857,8 +895,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         topic = data.replace("topic_", "")
         if topic == "custom":
             session['state'] = 'awaiting_topic'
+            summary = build_selection_summary(session['params'])
             await query.edit_message_text(
-                f"📚 Subject: *{session['params'].get('subject', 'General')}*\n\n✏️ Type your topic:"
+                f"{summary}\n\n✏️ *Type your topic:*"
             , parse_mode='Markdown')
             return
         
@@ -881,8 +920,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        summary = build_selection_summary(session['params'])
         await query.edit_message_text(
-            f"📚 *{session['params'].get('subject')}*: {topic}\n\nWhat age are your students?",
+            f"{summary}\n\n👶 *What age are your students?*",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -906,8 +946,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        summary = build_selection_summary(session['params'])
         await query.edit_message_text(
-            f"👥 Ages: *{ages}*\n\nHow long is your class?",
+            f"{summary}\n\n⏱ *How long is your class?*",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -938,9 +979,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        summary = build_selection_summary(session['params'])
         await query.edit_message_text(
-            f"⏱ Duration: *{duration} minutes*\n\n"
-            "What country? (helps with local examples)",
+            f"{summary}\n\n📍 *Where are you teaching?*\n(helps with local examples)",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -959,15 +1000,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session['state'] = 'awaiting_materials'
         
         keyboard = [
-            [InlineKeyboardButton("None - voice & movement only", callback_data="materials_none")],
-            [InlineKeyboardButton("Basic - chalk, recycled paper, everyday items", callback_data="materials_basic")],
-            [InlineKeyboardButton("Standard - paper, pencils, board", callback_data="materials_standard")],
+            [InlineKeyboardButton("🎭 No materials - voice & movement", callback_data="materials_none")],
+            [InlineKeyboardButton("📝 Basic - board, paper, pencils", callback_data="materials_basic")],
+            [InlineKeyboardButton("📦 Full classroom - worksheets & supplies", callback_data="materials_standard")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        location = session['params'].get('country', 'Universal')
+        # Build summary of selections so far
+        summary = build_selection_summary(session['params'])
         await query.edit_message_text(
-            f"📍 Location: *{location}*\n\nWhat materials do you have?",
+            f"{summary}\n\n📦 *What materials do you have?*",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -987,8 +1029,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        summary = build_selection_summary(session['params'])
         await query.edit_message_text(
-            "🎨 What teaching style works best for you?",
+            f"{summary}\n\n🎨 *What teaching style works best?*",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -1009,8 +1052,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        summary = build_selection_summary(session['params'])
         await query.edit_message_text(
-            "📊 How detailed should the lesson plan be?",
+            f"{summary}\n\n📊 *How detailed should the lesson plan be?*",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -1021,7 +1065,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         depth = data.replace("depth_", "")
         session['params']['depth'] = depth
         
-        await query.edit_message_text("⏳ *Generating your lesson plan...*", parse_mode='Markdown')
+        summary = build_selection_summary(session['params'])
+        await query.edit_message_text(
+            f"{summary}\n\n⏳ *Generating your lesson plan...*", 
+            parse_mode='Markdown'
+        )
         
         try:
             lesson_content = generate_lesson(session['params'])
@@ -1392,14 +1440,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session['state'] = 'awaiting_materials'
         
         keyboard = [
-            [InlineKeyboardButton("None - voice & movement only", callback_data="materials_none")],
-            [InlineKeyboardButton("Basic - chalk, recycled paper, everyday items", callback_data="materials_basic")],
-            [InlineKeyboardButton("Standard - paper, pencils, board", callback_data="materials_standard")],
+            [InlineKeyboardButton("🎭 No materials - voice & movement", callback_data="materials_none")],
+            [InlineKeyboardButton("📝 Basic - board, paper, pencils", callback_data="materials_basic")],
+            [InlineKeyboardButton("📦 Full classroom - worksheets & supplies", callback_data="materials_standard")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        summary = build_selection_summary(session['params'])
         await update.message.reply_text(
-            f"📍 Location: *{text}*\n\nWhat materials do you have?",
+            f"{summary}\n\n📦 *What materials do you have?*",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
