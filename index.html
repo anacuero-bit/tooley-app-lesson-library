@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tooley | AI Lesson Plans for Teachers</title>
+    <meta name="description" content="Free AI-powered lesson plans for teachers in low-resource schools. Generate customized lessons in seconds via Telegram.">
+    <meta name="keywords" content="lesson plans, AI, teachers, education, low-cost schools, James Tooley, classroom, teaching">
+    <meta property="og:title" content="Tooley | AI Lesson Plans for Teachers">
+    <meta property="og:description" content="Free AI-powered lesson plans for teachers in low-resource schools. Generate customized lessons in seconds.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://tooley.app">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #f59e0b;
+            --color-primary-dark: #d97706;
+            --color-primary-light: #fbbf24;
+            --color-primary-pale: #fef3c7;
+            --color-dark: #0f172a;
+            --color-slate: #334155;
+            --color-stone: #64748b;
+            --color-mist: #e2e8f0;
+            --color-cloud: #f8fafc;
+            --color-warm: #fffbeb;
+            --color-white: #ffffff;
+            --font-display: 'Space Grotesk', -apple-system, sans-serif;
+            --font-main: 'Inter', -apple-system, sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-main);
+            font-size: 16px;
+            line-height: 1.6;
+            color: var(--color-dark);
+            background: var(--color-white);
+            min-height: 100vh;
+        }
+
+        ::selection {
+            background: var(--color-primary);
+            color: var(--color-white);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* ============================================
+           HEADER - Mobile First
+           ============================================ */
+        header {
+            background: var(--color-white);
+            border-bottom: 1px solid var(--color-mist);
+            padding: 16px 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+        }
+
+        .logo img {
+            height: 32px;
+            width: auto;
+        }
+
+        nav {
+            display: flex;
+            gap: 28px;
+            align-items: center;
+        }
+
+        nav a {
+            color: var(--color-slate);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        nav a:hover {
+            color: var(--color-primary-dark);
+        }
+
+        .nav-cta {
+            background: var(--color-dark);
+            color: var(--color-white) !important;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .nav-cta:hover {
+            background: var(--color-slate);
+            color: var(--color-white) !important;
+        }
+
+        /* ============================================
+           HERO
+           ============================================ */
+        .hero {
+            padding: 60px 0 80px;
+            background: linear-gradient(135deg, var(--color-warm) 0%, var(--color-white) 100%);
+        }
+
+        .hero .container {
+            display: grid;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .hero-content {
+            max-width: 600px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--color-primary-pale);
+            color: var(--color-primary-dark);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1.15;
+            color: var(--color-dark);
+            margin-bottom: 20px;
+        }
+
+        .hero h1 em {
+            color: var(--color-primary-dark);
+            font-style: normal;
+        }
+
+        .hero-text {
+            font-size: 1.15rem;
+            color: var(--color-slate);
+            margin-bottom: 32px;
+            line-height: 1.7;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: var(--color-dark);
+        }
+
+        .btn-primary:hover {
+            background: var(--color-primary-dark);
+            color: var(--color-white);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--color-white);
+            color: var(--color-dark);
+            border: 2px solid var(--color-mist);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--color-dark);
+        }
+
+        .hero-visual {
+            background: var(--color-dark);
+            border-radius: 16px;
+            padding: 24px;
+            color: var(--color-white);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            line-height: 1.9;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        }
+
+        .hero-visual .prompt {
+            color: var(--color-primary);
+        }
+
+        .hero-visual .response {
+            color: var(--color-mist);
+            margin-top: 16px;
+        }
+
+        .hero-visual strong {
+            color: var(--color-white);
+        }
+
+        /* ============================================
+           STATS
+           ============================================ */
+        .stats {
+            padding: 40px 0;
+            background: var(--color-white);
+            border-bottom: 1px solid var(--color-mist);
+        }
+
+        .stats .container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            text-align: center;
+        }
+
+        .stat-item h3 {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--color-primary-dark);
+            margin-bottom: 4px;
+        }
+
+        .stat-item p {
+            font-size: 0.85rem;
+            color: var(--color-stone);
+        }
+
+        /* ============================================
+           HOW IT WORKS
+           ============================================ */
+        .how-it-works {
+            padding: 80px 0;
+            background: var(--color-cloud);
+        }
+
+        .section-header {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto 50px;
+        }
+
+        .section-header h2 {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--color-dark);
+            margin-bottom: 12px;
+        }
+
+        .section-header p {
+            color: var(--color-slate);
+            font-size: 1.05rem;
+        }
+
+        .steps {
+            display: grid;
+            gap: 24px;
+        }
+
+        .step {
+            background: var(--color-white);
+            padding: 28px;
+            border-radius: 12px;
+            border: 1px solid var(--color-mist);
+            transition: all 0.2s;
+        }
+
+        .step:hover {
+            border-color: var(--color-primary);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.1);
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: var(--color-primary);
+            color: var(--color-dark);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+        }
+
+        .step h3 {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--color-dark);
+        }
+
+        .step p {
+            color: var(--color-slate);
+            font-size: 0.95rem;
+        }
+
+        /* ============================================
+           FEATURES
+           ============================================ */
+        .features {
+            padding: 80px 0;
+            background: var(--color-white);
+        }
+
+        .features-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .feature {
+            padding: 24px;
+            border-radius: 12px;
+            background: var(--color-cloud);
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .feature:hover {
+            border-color: var(--color-primary-light);
+            background: var(--color-warm);
+        }
+
+        .feature-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--color-primary-pale);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-bottom: 14px;
+        }
+
+        .feature h3 {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--color-dark);
+        }
+
+        .feature p {
+            color: var(--color-slate);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* ============================================
+           ABOUT / STORY
+           ============================================ */
+        .about {
+            padding: 80px 0;
+            background: var(--color-dark);
+            color: var(--color-white);
+        }
+
+        .about .section-header h2 {
+            color: var(--color-white);
+        }
+
+        .about .section-header p {
+            color: var(--color-mist);
+        }
+
+        .about-content {
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .about-content p {
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 20px;
+            font-size: 1.05rem;
+            line-height: 1.8;
+        }
+
+        .quote-box {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid var(--color-primary);
+            padding: 24px;
+            margin: 32px 0;
+            border-radius: 0 12px 12px 0;
+        }
+
+        .quote-box blockquote {
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-style: italic;
+            color: var(--color-white);
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+
+        .quote-box cite {
+            color: var(--color-primary);
+            font-size: 0.9rem;
+            font-style: normal;
+            font-weight: 500;
+        }
+
+        /* ============================================
+           CTA
+           ============================================ */
+        .cta {
+            padding: 80px 0;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            text-align: center;
+        }
+
+        .cta h2 {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--color-dark);
+            margin-bottom: 16px;
+        }
+
+        .cta p {
+            color: rgba(0,0,0,0.7);
+            font-size: 1.1rem;
+            margin-bottom: 32px;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .btn-dark {
+            background: var(--color-dark);
+            color: var(--color-white);
+        }
+
+        .btn-dark:hover {
+            background: var(--color-slate);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
+        footer {
+            background: var(--color-dark);
+            color: var(--color-mist);
+            padding: 50px 0 30px;
+        }
+
+        .footer-main {
+            display: grid;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+
+        .footer-brand .logo img {
+            height: 28px;
+        }
+
+        .footer-brand p {
+            margin-top: 16px;
+            font-size: 0.9rem;
+            color: var(--color-stone);
+            max-width: 300px;
+            line-height: 1.6;
+        }
+
+        .footer-links h4 {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--color-white);
+            margin-bottom: 16px;
+        }
+
+        .footer-links ul {
+            list-style: none;
+        }
+
+        .footer-links li {
+            margin-bottom: 10px;
+        }
+
+        .footer-links a {
+            color: var(--color-stone);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: var(--color-primary);
+        }
+
+        .footer-bottom {
+            padding-top: 24px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            text-align: center;
+        }
+
+        .footer-bottom p {
+            font-size: 0.85rem;
+            color: var(--color-stone);
+        }
+
+        .footer-legal {
+            display: flex;
+            gap: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .footer-legal a {
+            color: var(--color-stone);
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .footer-legal a:hover {
+            color: var(--color-primary);
+        }
+
+        /* ============================================
+           COOKIE CONSENT
+           ============================================ */
+        .cookie-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--color-dark);
+            color: var(--color-white);
+            padding: 16px 20px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            z-index: 1000;
+            font-size: 0.9rem;
+        }
+
+        .cookie-banner.show {
+            display: flex;
+        }
+
+        .cookie-banner button {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .cookie-accept {
+            background: var(--color-primary);
+            color: var(--color-dark);
+        }
+
+        .cookie-accept:hover {
+            background: var(--color-primary-light);
+        }
+
+        .cookie-decline {
+            background: transparent;
+            color: var(--color-mist);
+            border: 1px solid var(--color-stone) !important;
+        }
+
+        .cookie-decline:hover {
+            border-color: var(--color-white) !important;
+            color: var(--color-white);
+        }
+
+        /* ============================================
+           RESPONSIVE - Tablet
+           ============================================ */
+        @media (min-width: 768px) {
+            .hero .container {
+                grid-template-columns: 1fr 1fr;
+                gap: 60px;
+            }
+
+            .hero h1 {
+                font-size: 3rem;
+            }
+
+            .stats .container {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .steps {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .footer-main {
+                grid-template-columns: 2fr 1fr 1fr;
+            }
+
+            .footer-bottom {
+                flex-direction: row;
+                justify-content: space-between;
+                text-align: left;
+            }
+        }
+
+        /* ============================================
+           RESPONSIVE - Desktop
+           ============================================ */
+        @media (min-width: 1024px) {
+            .hero {
+                padding: 100px 0 120px;
+            }
+
+            .hero h1 {
+                font-size: 3.25rem;
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .section-header h2 {
+                font-size: 2.5rem;
+            }
+        }
+
+        /* ============================================
+           RESPONSIVE - Mobile
+           ============================================ */
+        @media (max-width: 767px) {
+            nav a:not(.nav-cta) {
+                display: none;
+            }
+
+            .hero-visual {
+                display: none;
+            }
+
+            .stat-item h3 {
+                font-size: 1.5rem;
+            }
+
+            .cta h2 {
+                font-size: 1.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <a href="#" class="logo">
+                <img src="logo.svg" alt="Tooley">
+            </a>
+            <nav>
+                <a href="#how-it-works">How it works</a>
+                <a href="#features">Features</a>
+                <a href="#about">About</a>
+                <a href="https://t.me/TooleyAppBot" class="nav-cta" target="_blank">Open in Telegram</a>
+            </nav>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">✨ Free for all teachers</div>
+                <h1>AI lesson plans in <em>seconds</em></h1>
+                <p class="hero-text">Generate customized lesson plans instantly via Telegram. Built for teachers in low-resource schools who deliver big results with limited materials.</p>
+                <div class="hero-actions">
+                    <a href="https://t.me/TooleyAppBot" class="btn btn-primary" target="_blank">
+                        Open in Telegram →
+                    </a>
+                    <a href="#how-it-works" class="btn btn-secondary">
+                        See how it works
+                    </a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="prompt">You: "Math lesson about fractions for 8-10 year olds in Kenya"</div>
+                <div class="response">
+                    📚 Generating your lesson plan...<br><br>
+                    ✓ <strong>FRACTIONS: FAIR SHARING</strong><br>
+                    Ages 8-10 | 45 min | Basic materials<br><br>
+                    LEARNING OBJECTIVE<br>
+                    Students will understand and identify<br>
+                    simple fractions (½, ¼, ⅓)<br><br>
+                    OPENING HOOK (5 min)<br>
+                    "If I have one chapati and want to share<br>
+                    equally between 2 people, how much does<br>
+                    each person get?"<br><br>
+                    <span style="color: var(--color-primary);">[📄 Download PDF]</span> <span style="color: var(--color-primary);">[✏️ Tweak]</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="stats">
+        <div class="container">
+            <div class="stat-item">
+                <h3>Free</h3>
+                <p>Always, for every teacher</p>
+            </div>
+            <div class="stat-item">
+                <h3>30s</h3>
+                <p>Average generation time</p>
+            </div>
+            <div class="stat-item">
+                <h3>50+</h3>
+                <p>Countries supported</p>
+            </div>
+            <div class="stat-item">
+                <h3>∞</h3>
+                <p>Topics you can teach</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="how-it-works" id="how-it-works">
+        <div class="container">
+            <div class="section-header">
+                <h2>How it works</h2>
+                <p>Three steps to a customized lesson plan. No signup required.</p>
+            </div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Open Telegram</h3>
+                    <p>Search for @TooleyAppBot or click our link. No account needed—just start chatting.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Describe your lesson</h3>
+                    <p>Type or voice-record what you need: subject, topic, student ages, your country.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Get your plan</h3>
+                    <p>Receive a complete lesson plan with activities and timing. Download as PDF or tweak it.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="features" id="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>Built for real classrooms</h2>
+                <p>Every feature designed for teachers with limited resources but unlimited dedication.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Localized examples</h3>
+                    <p>Lessons use familiar references—local foods, currency, games—that students understand.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📦</div>
+                    <h3>Zero-material activities</h3>
+                    <p>Every lesson works with just chalk, voices, and imagination.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🎤</div>
+                    <h3>Voice input</h3>
+                    <p>Record a voice message describing what you need. No typing required.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📄</div>
+                    <h3>PDF downloads</h3>
+                    <p>Get printable lesson plans to reference in class or share with colleagues.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">✏️</div>
+                    <h3>Tweak & refine</h3>
+                    <p>"Make it more interactive"—adjust until it fits your teaching style.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🌍</div>
+                    <h3>Share globally</h3>
+                    <p>Contribute lessons to a growing library that helps teachers worldwide.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📚</div>
+                    <h3>Browse existing</h3>
+                    <p>Search lessons created by other teachers. Download instantly.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Fast & free</h3>
+                    <p>No signup, no payment, no limits. Just open Telegram and start.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="about" id="about">
+        <div class="container">
+            <div class="section-header">
+                <h2>Why "Tooley"?</h2>
+                <p>Named after the researcher who discovered something remarkable.</p>
+            </div>
+            <div class="about-content">
+                <p>In the slums of Hyderabad, Lagos, and Nairobi, Professor James Tooley found something that surprised the education establishment: poor parents were paying for private schools out of their own pockets, even when free government schools existed nearby.</p>
+                <p>Why? Because these small, scrappy, community-run schools actually taught their children. Teachers—often without formal degrees—were delivering results that put well-funded government schools to shame.</p>
+                
+                <div class="quote-box">
+                    <blockquote>"Wherever I went, I found private schools in the slums... The teachers in these schools were dedicated, and they were getting results."</blockquote>
+                    <cite>— James Tooley, "The Beautiful Tree"</cite>
+                </div>
+                
+                <p>This tool is built for those teachers. The ones who work with chalk and determination. The ones who prove that great education doesn't require fancy resources—just a teacher who cares and a plan to follow.</p>
+                <p>Free, forever. Because every teacher deserves support.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta">
+        <div class="container">
+            <h2>Ready to create your first lesson?</h2>
+            <p>Open Telegram and generate a customized lesson plan in seconds. No signup needed.</p>
+            <a href="https://t.me/TooleyAppBot" class="btn btn-dark" target="_blank">
+                Open @TooleyAppBot →
+            </a>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <div class="footer-main">
+                <div class="footer-brand">
+                    <a href="#" class="logo">
+                        <img src="logo-white.svg" alt="Tooley">
+                    </a>
+                    <p>Free AI-powered lesson plans for teachers in low-resource schools around the world.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="#how-it-works">How it works</a></li>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="https://t.me/TooleyAppBot" target="_blank">Open bot</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>About</h4>
+                    <ul>
+                        <li><a href="#about">Our story</a></li>
+                        <li><a href="https://en.wikipedia.org/wiki/James_Tooley" target="_blank">James Tooley</a></li>
+                        <li><a href="/cdn-cgi/l/email-protection#274f424b4b48675348484b425e09465757">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>© 2026 Tooley. Free for teachers, forever.</p>
+                <div class="footer-legal">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Use</a>
+                    <a href="#">Cookie Policy</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <div class="cookie-banner" id="cookieBanner">
+        <span>We use cookies to improve your experience.</span>
+        <button class="cookie-accept" onclick="acceptCookies()">Accept</button>
+        <button class="cookie-decline" onclick="declineCookies()">Decline</button>
+    </div>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+        // Cookie consent
+        if (!localStorage.getItem('cookieConsent')) {
+            document.getElementById('cookieBanner').classList.add('show');
+        }
+
+        function acceptCookies() {
+            localStorage.setItem('cookieConsent', 'accepted');
+            document.getElementById('cookieBanner').classList.remove('show');
+        }
+
+        function declineCookies() {
+            localStorage.setItem('cookieConsent', 'declined');
+            document.getElementById('cookieBanner').classList.remove('show');
+        }
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
+                if (href.length > 1) {
+                    e.preventDefault();
+                    const target = document.querySelector(href);
+                    if (target) {
+                        target.scrollI
