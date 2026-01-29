@@ -1,5 +1,22 @@
 [
   {
+    "id": "les_52101ffd",
+    "created": "2026-01-29T03:39:28.546024Z",
+    "teacher_name": "Shavir",
+    "country": "India",
+    "subject": "Science",
+    "topic": "Water Cycle",
+    "ages": "15-18",
+    "duration": "60",
+    "materials": "none",
+    "style": "interactive",
+    "depth": "quick",
+    "content": "# Water Cycle Lesson Plan (Quick)\n\n**Learning Objective:** Students will explain the four main processes of the water cycle through interactive demonstration and real-life connections.\n\n**Key Points:**\n• Evaporation - sun heats water from rivers, lakes, and fields\n• Condensation - water vapor cools and forms clouds \n• Precipitation - rain, snow, or hail falls from clouds\n• Collection - water flows back to rivers, groundwater, or is stored\n\n**Main Activity - Human Water Cycle Theater (25 minutes):**\nDivide class into four groups representing each process. Students create actions:\n- Evaporation group: crouch down, slowly rise with arms up (water rising as vapor)\n- Condensation group: gather together, link arms (forming clouds)  \n- Precipitation group: wiggle fingers downward, make rain sounds\n- Collection group: flow like rivers, some sit as groundwater\n\nSay: \"Now let's follow one drop of water from the Ganges River through its complete journey!\" Call out each process - groups perform their actions in sequence. Repeat 3-4 times, letting students switch groups.\n\n**Check Understanding:** \"Priya notices her wet sari dries quickly in the hot Chennai sun. Which process is happening and what comes next in the cycle?\"\n\n**Teacher Tip:** If students get too excited, pause and whisper - they'll naturally quiet down to hear you, then continue the activity.",
+    "public": true,
+    "views": 0,
+    "downloads": 0
+  },
+  {
     "id": "les_50a2e026",
     "created": "2026-01-29T03:28:37.090457Z",
     "teacher_name": "Dan",
