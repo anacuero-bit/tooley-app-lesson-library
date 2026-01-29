@@ -2,11 +2,18 @@
 Tooley - Lesson Plan Generator Bot
 Telegram bot that generates customized lesson plans for teachers worldwide.
 
-Version: 2.10.0
+Version: 2.10.1
 Last Updated: 2026-01-29
 
 CHANGELOG:
 ---------
+v2.10.1 (2026-01-29)
+  - FIXED: Format menu now shows Chat+PDF | Chat+HTML (not HTML+PDF)
+  - FIXED: HTML output now has ACTUAL SVG logo embedded
+  - FIXED: PDF fallback more robust, handles None return
+  - IMPROVED: PDF error logging with full traceback
+  - NOTE: Website push requires GITHUB_WEBSITE_REPO env var on Railway
+
 v2.10.0 (2026-01-29)
   - FIXED: Format button handlers now definitively working
   - FIXED: PDF generation error handling improved
@@ -15,7 +22,7 @@ v2.10.0 (2026-01-29)
   - CHANGED: Format button layout reorganized:
     * Row 1: Chat only (full width)
     * Row 2: PDF only | HTML only
-    * Row 3: Chat+PDF | HTML+PDF
+    * Row 3: Chat+PDF | Chat+HTML
   - IMPROVED: More robust callback handler routing
   - IMPROVED: Debug logging throughout format/generation flow
 
@@ -39,7 +46,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.10.0"
+VERSION = "2.10.1"
 
 import os
 import logging
@@ -404,20 +411,25 @@ def create_lesson_pdf(content, params):
     except Exception as e:
         logger.error(f"PDF creation failed: {e}")
         logger.error(traceback.format_exc())
-        # Fallback
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font('Helvetica', 'B', 16)
-        pdf.cell(0, 10, "Tooley Lesson Plan")
-        pdf.ln(15)
-        pdf.set_font('Helvetica', '', 10)
-        for line in content.split('\n')[:100]:
-            safe = line.encode('ascii', 'replace').decode('ascii')[:90]
-            pdf.multi_cell(0, 5, safe)
-        pdf_buffer = BytesIO()
-        pdf_buffer.write(pdf.output())
-        pdf_buffer.seek(0)
-        return pdf_buffer
+        # Fallback - simplified PDF
+        try:
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font('Helvetica', 'B', 16)
+            pdf.cell(0, 10, "Tooley Lesson Plan")
+            pdf.ln(15)
+            pdf.set_font('Helvetica', '', 10)
+            for line in content.split('\n')[:100]:
+                safe = ''.join(c if ord(c) < 128 else '?' for c in line)[:90]
+                if safe.strip():
+                    pdf.multi_cell(0, 5, safe)
+            pdf_buffer = BytesIO()
+            pdf_buffer.write(pdf.output())
+            pdf_buffer.seek(0)
+            return pdf_buffer
+        except Exception as e2:
+            logger.error(f"PDF fallback also failed: {e2}")
+            return None
 
 
 def generate_lesson_filename(params):
@@ -521,9 +533,7 @@ def create_lesson_html(content, params):
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{ font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.6; color: #0f172a; background: #fff; padding: 40px; max-width: 800px; margin: 0 auto; }}
         .header {{ display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 2px solid #0f172a; margin-bottom: 24px; }}
-        .logo {{ display: flex; align-items: center; gap: 10px; }}
-        .logo-bar {{ width: 4px; height: 32px; background: #d97706; border-radius: 2px; }}
-        .logo-text {{ font-size: 28px; font-weight: 700; color: #0f172a; }}
+        .logo {{ height: 36px; }}
         .tagline {{ font-size: 12px; color: #64748b; }}
         .tagline a {{ color: #d97706; text-decoration: none; }}
         .specs-box {{ background: #fffbeb; border: 1px solid #0f172a; padding: 20px 24px; margin: 0 0 32px 0; }}
@@ -544,10 +554,7 @@ def create_lesson_html(content, params):
 </head>
 <body>
     <div class="header">
-        <div class="logo">
-            <div class="logo-bar"></div>
-            <span class="logo-text">tooley</span>
-        </div>
+        <svg class="logo" viewBox="0 0 975 375" xmlns="http://www.w3.org/2000/svg"><g fill="#f59e0b"><path d="M87.8 289.8H55.6V149.2H22.7v-27.1h32.9v-52.5h32.2v52.5H120.8v27.1H87.8z"/><path d="M136.9 205.8c0-17.4 3.8-32.7 11.3-45.8 7.5-13.1 18-23.5 31.2-31 13.3-7.6 28.3-11.3 45-11.3s31.6 3.8 44.8 11.3c13.1 7.6 23.5 17.9 31 31 7.6 13.1 11.4 28.4 11.4 45.8 0 17.2-3.8 32.4-11.4 45.6-7.5 13.3-17.9 23.7-31 31.2-13.2 7.5-28.1 11.3-44.8 11.3s-31.7-3.8-45-11.3c-13.2-7.5-23.7-17.9-31.2-31.2-7.5-13.2-11.3-28.4-11.3-45.6zm32.6 0c0 17.4 5.1 31.6 15.3 42.7 10.2 11.1 23.4 16.6 39.6 16.6 10.8 0 20.3-2.5 28.5-7.5 8.2-5 14.7-12 19.4-20.9 4.7-8.9 7-19.2 7-30.9s-2.3-22-7-30.9c-4.7-8.9-11.2-15.9-19.4-20.9-8.2-5-17.7-7.5-28.5-7.5-16.2 0-29.4 5.5-39.6 16.5-10.2 10.9-15.3 25.2-15.3 42.8z"/><path d="M336.2 205.8c0-17.4 3.8-32.7 11.3-45.8 7.5-13.1 18-23.5 31.2-31 13.3-7.6 28.3-11.3 45-11.3s31.6 3.8 44.8 11.3c13.1 7.6 23.5 17.9 31 31 7.6 13.1 11.4 28.4 11.4 45.8 0 17.2-3.8 32.4-11.4 45.6-7.5 13.3-17.9 23.7-31 31.2-13.2 7.5-28.1 11.3-44.8 11.3s-31.7-3.8-45-11.3c-13.2-7.5-23.7-17.9-31.2-31.2-7.5-13.2-11.3-28.4-11.3-45.6zm32.6 0c0 17.4 5.1 31.6 15.3 42.7 10.2 11.1 23.4 16.6 39.6 16.6 10.8 0 20.3-2.5 28.5-7.5 8.2-5 14.7-12 19.4-20.9 4.7-8.9 7-19.2 7-30.9s-2.3-22-7-30.9c-4.7-8.9-11.2-15.9-19.4-20.9-8.2-5-17.7-7.5-28.5-7.5-16.2 0-29.4 5.5-39.6 16.5-10.2 10.9-15.3 25.2-15.3 42.8z"/><path d="M579.3 289.8h-32.2V37.3h32.2z"/><path d="M699 293.9c-16.5 0-31-3.7-43.4-11.1-12.5-7.4-22.3-17.7-29.3-30.9-7.1-13.2-10.6-28.4-10.6-45.8 0-17.6 3.4-33 10.3-46.3 6.9-13.3 16.5-23.7 28.8-31.2 12.4-7.6 26.7-11.3 42.9-11.3 16 0 29.9 3.4 41.7 10.3 11.8 6.9 21 16.5 27.5 28.8 6.5 12.3 9.8 26.9 9.8 43.6v12h-129.7c1.1 17.6 6.2 31.2 15.3 40.7 9 9.5 21.5 14.2 37.5 14.2 25.6 0 41.3-9.8 47-29.5h30.2c-4.1 18.1-12.9 32-26.4 41.7-13.5 9.7-30.7 14.8-51.6 14.8zm-1.4-149.5c-14 0-25.3 4-34 12-8.7 8-14.1 19.4-16.1 34.3h96.7c0-14-4.2-25.2-12.7-33.6-8.5-8.5-19.8-12.7-33.9-12.7z"/><path d="M791.7 365h-21.6v-26.4h21.6c7.8 0 14.7-1.3 20.8-3.9 6.1-2.6 11-9.2 14.9-19.7l5.8-16.1-67.6-176.7h33.9l48.7 135.2 49.7-135.2h33.3L852.4 328c-5.7 14.4-12.9 24.8-21.6 31.2-8.7 6.4-19.4 9.6-32.2 9.6-5.3 0-10.2-.3-14.8-1-4.5-.7-9-1.5-13.3-2.4z"/></g></svg>
         <span class="tagline">AI Lesson Plans for Teachers | <a href="https://tooley.app">tooley.app</a></span>
     </div>
     <div class="specs-box">
@@ -951,17 +958,21 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         await context.bot.send_message(chat_id=update.effective_chat.id, text=chunk)
             
             # PDF output
-            if output_format in ['pdf', 'chatpdf', 'htmlpdf']:
+            if output_format in ['pdf', 'chatpdf']:
                 try:
                     pdf_buffer = create_lesson_pdf(lesson_content, session['params'])
-                    filename = generate_lesson_filename(session['params']) + '.pdf'
-                    await context.bot.send_document(chat_id=update.effective_chat.id, document=pdf_buffer, filename=filename, caption=f"📄 *PDF ready*\n\n{specs}", parse_mode='Markdown')
+                    if pdf_buffer:
+                        filename = generate_lesson_filename(session['params']) + '.pdf'
+                        await context.bot.send_document(chat_id=update.effective_chat.id, document=pdf_buffer, filename=filename, caption=f"📄 *PDF ready*", parse_mode='Markdown')
+                    else:
+                        await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ _PDF issue, content above._", parse_mode='Markdown')
                 except Exception as e:
-                    logger.error(f"PDF error: {e}")
+                    logger.error(f"PDF send error: {e}")
+                    logger.error(traceback.format_exc())
                     await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ _PDF issue, content above._", parse_mode='Markdown')
             
             # HTML output
-            if output_format in ['html', 'chathtml', 'htmlpdf']:
+            if output_format in ['html', 'chathtml']:
                 try:
                     html_content = create_lesson_html(lesson_content, session['params'])
                     html_buffer = BytesIO(html_content.encode('utf-8'))
@@ -1101,13 +1112,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session['params']['style'] = data.replace("style_", "")
         session['state'] = 'awaiting_format'
         
-        # v2.10.0 - Reorganized format buttons
+        # v2.10.1 - Fixed format buttons
         keyboard = [
             [InlineKeyboardButton("📱 Chat only", callback_data="format_chat")],
             [InlineKeyboardButton("📄 PDF only", callback_data="format_pdf"),
              InlineKeyboardButton("🌐 HTML only", callback_data="format_html")],
-            [InlineKeyboardButton("📱+📄 Chat & PDF", callback_data="format_chatpdf"),
-             InlineKeyboardButton("🌐+📄 HTML & PDF", callback_data="format_htmlpdf")],
+            [InlineKeyboardButton("📱+📄 Chat+PDF", callback_data="format_chatpdf"),
+             InlineKeyboardButton("📱+🌐 Chat+HTML", callback_data="format_chathtml")],
         ]
         summary = build_selection_summary(session['params'])
         await query.edit_message_text(
