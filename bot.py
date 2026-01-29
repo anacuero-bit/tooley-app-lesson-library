@@ -2,11 +2,18 @@
 Tooley - Lesson Plan Generator Bot
 Telegram bot that generates customized lesson plans for teachers worldwide.
 
-Version: 2.1.0
+Version: 2.2.0
 Last Updated: 2026-01-29
 
 CHANGELOG:
 ---------
+v2.2.0 (2026-01-29)
+  - Applied Tooley brand colors to PDF (amber #f59e0b instead of green)
+  - Updated ages emoji to medium-brown skin tone 🧒🏽
+  - Filename prefix now starts with tooley_ (e.g., tooley_math_fractions_ages9to11_30min.pdf)
+  - Fixed "Choose different topic" to loop back to topic presets (not free text)
+  - Brand guide created for consistent design across all products
+
 v2.1.0 (2026-01-29)
   - Added format choice (📱 Read in chat vs 📄 Download PDF) before generation
   - Improved PDF branding and layout
@@ -35,7 +42,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.1.0"
+VERSION = "2.2.0"
 
 import os
 import logging
@@ -249,16 +256,16 @@ class LessonPDF(FPDF):
         self.set_auto_page_break(auto=True, margin=20)
     
     def header(self):
-        # Tooley branded header
+        # Tooley branded header - Amber brand colors
         self.set_font('Helvetica', 'B', 16)
-        self.set_text_color(30, 123, 70)  # Tooley green
+        self.set_text_color(245, 158, 11)  # Tooley Amber #f59e0b
         self.cell(0, 8, 'TOOLEY', align='L')
         self.set_font('Helvetica', '', 9)
-        self.set_text_color(128, 128, 128)
+        self.set_text_color(100, 116, 139)  # Stone gray #64748b
         self.cell(0, 8, 'Lesson Plans for Teachers', align='R')
         self.ln(12)
         # Divider line
-        self.set_draw_color(30, 123, 70)
+        self.set_draw_color(245, 158, 11)  # Tooley Amber
         self.set_line_width(0.5)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(8)
@@ -290,8 +297,8 @@ class LessonPDF(FPDF):
     
     def add_specs_box(self, params: dict):
         """Add a branded lesson specs box at the top."""
-        self.set_fill_color(245, 250, 245)  # Light green background
-        self.set_draw_color(30, 123, 70)
+        self.set_fill_color(254, 243, 199)  # Amber Pale #fef3c7
+        self.set_draw_color(245, 158, 11)   # Tooley Amber #f59e0b
         
         # Calculate box height based on content
         specs = []
@@ -317,12 +324,12 @@ class LessonPDF(FPDF):
         
         self.set_xy(15, self.get_y() + 4)
         self.set_font('Helvetica', 'B', 10)
-        self.set_text_color(30, 123, 70)
+        self.set_text_color(217, 119, 6)  # Amber Dark #d97706
         self.cell(0, 5, 'LESSON SPECIFICATIONS')
         self.ln(6)
         
         self.set_font('Helvetica', '', 9)
-        self.set_text_color(60, 60, 60)
+        self.set_text_color(51, 65, 85)  # Slate #334155
         for spec in specs:
             self.set_x(15)
             self.cell(0, 5, self._safe_text(spec))
@@ -338,7 +345,7 @@ class LessonPDF(FPDF):
         
         # Main content
         self.set_font('Helvetica', '', 10)
-        self.set_text_color(30, 30, 30)
+        self.set_text_color(15, 23, 42)  # Dark #0f172a
         
         in_section = False
         
@@ -355,11 +362,11 @@ class LessonPDF(FPDF):
                 if line.startswith('## ') or line.startswith('# '):
                     self.ln(6)
                     self.set_font('Helvetica', 'B', 12)
-                    self.set_text_color(30, 123, 70)
+                    self.set_text_color(217, 119, 6)  # Amber Dark #d97706
                     header_text = safe_line.lstrip('#').strip()
                     self.multi_cell(0, 7, header_text)
                     self.set_font('Helvetica', '', 10)
-                    self.set_text_color(30, 30, 30)
+                    self.set_text_color(15, 23, 42)  # Dark
                     self.ln(2)
                     in_section = True
                 
@@ -375,10 +382,10 @@ class LessonPDF(FPDF):
                 elif line.endswith(':') and len(line) < 60 and not line.startswith('-'):
                     self.ln(4)
                     self.set_font('Helvetica', 'B', 10)
-                    self.set_text_color(60, 60, 60)
+                    self.set_text_color(51, 65, 85)  # Slate #334155
                     self.multi_cell(0, 6, safe_line)
                     self.set_font('Helvetica', '', 10)
-                    self.set_text_color(30, 30, 30)
+                    self.set_text_color(15, 23, 42)  # Dark
                 
                 # Bullet points
                 elif line.startswith('- ') or line.startswith('* ') or line.startswith('• '):
@@ -463,8 +470,10 @@ def create_lesson_pdf(content: str, params: dict) -> BytesIO:
 
 
 def generate_lesson_filename(params: dict) -> str:
-    """Generate a structured filename for the lesson PDF."""
-    parts = []
+    """Generate a structured filename for the lesson PDF.
+    Format: tooley_{subject}_{topic}_{ages}_{duration}.pdf
+    """
+    parts = ['tooley']  # Always start with tooley_
     
     # Subject (abbreviated)
     subject = params.get('subject', 'lesson')
@@ -510,7 +519,7 @@ def build_selection_summary(params: dict) -> str:
     if params.get('topic'):
         lines.append(f"📝 Topic: {params['topic']}")
     if params.get('ages'):
-        lines.append(f"👶 Ages: {params['ages']}")
+        lines.append(f"🧒🏽 Ages: {params['ages']}")
     if params.get('duration'):
         lines.append(f"⏱ Duration: {params['duration']} min")
     if params.get('country'):
@@ -1079,7 +1088,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         summary = build_selection_summary(session['params'])
         await query.edit_message_text(
-            f"{summary}\n\n👶 *What age are your students?*",
+            f"{summary}\n\n🧒🏽 *What age are your students?*",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -1521,10 +1530,66 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     if data == "action_new_topic":
+        # Keep same params but choose new topic - loop back to topic selection
         session['state'] = 'awaiting_topic'
-        # Keep other params, just ask for new topic
+        
+        # Show topic suggestions based on current subject
+        subject = session['params'].get('subject', '')
+        topic_suggestions = {
+            "Mathematics": [
+                ("Addition/Subtraction", "topic_Addition and Subtraction"),
+                ("Multiplication", "topic_Multiplication"),
+                ("Fractions", "topic_Fractions"),
+                ("Shapes & Geometry", "topic_Shapes and Geometry"),
+            ],
+            "Reading": [
+                ("Reading Comprehension", "topic_Reading Comprehension"),
+                ("Phonics", "topic_Phonics and Letter Sounds"),
+                ("Storytelling", "topic_Storytelling"),
+                ("Vocabulary", "topic_Building Vocabulary"),
+            ],
+            "Science": [
+                ("Plants & Animals", "topic_Plants and Animals"),
+                ("Human Body", "topic_The Human Body"),
+                ("Water Cycle", "topic_Water Cycle"),
+                ("Simple Machines", "topic_Simple Machines"),
+            ],
+            "Social Studies": [
+                ("Community Helpers", "topic_Community Helpers"),
+                ("Maps & Directions", "topic_Maps and Directions"),
+                ("Family & Culture", "topic_Family and Culture"),
+                ("Environment", "topic_Caring for Environment"),
+            ],
+            "Arts": [
+                ("Drawing", "topic_Drawing and Sketching"),
+                ("Music & Rhythm", "topic_Music and Rhythm"),
+                ("Drama/Role Play", "topic_Drama and Role Play"),
+                ("Crafts", "topic_Simple Crafts"),
+            ],
+            "Language": [
+                ("Sentence Building", "topic_Building Sentences"),
+                ("Speaking Practice", "topic_Speaking Practice"),
+                ("Writing Stories", "topic_Writing Short Stories"),
+                ("Grammar Basics", "topic_Basic Grammar"),
+            ],
+        }
+        
+        suggestions = topic_suggestions.get(subject, [])
+        
+        keyboard = []
+        for label, callback in suggestions:
+            keyboard.append([InlineKeyboardButton(label, callback_data=callback)])
+        keyboard.append([InlineKeyboardButton("✏️ Type my own topic...", callback_data="topic_custom")])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Show current params without topic
+        params_summary = f"📚 Subject: {subject}\n🧒🏽 Ages: {session['params'].get('ages', '?')}\n📍 Location: {session['params'].get('country', '?')}"
+        
         await query.edit_message_text(
-            "📝 What topic would you like instead?"
+            f"━━━━ *Same Settings* ━━━━\n{params_summary}\n━━━━━━━━━━━━━━━━━━\n\n📝 *Pick a different topic:*",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
         )
         return
     
