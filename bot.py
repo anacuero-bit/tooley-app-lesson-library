@@ -2,11 +2,17 @@
 Tooley - Lesson Plan Generator Bot
 Telegram bot that generates customized lesson plans for teachers worldwide.
 
-Version: 2.10.2
+Version: 2.10.3
 Last Updated: 2026-01-29
 
 CHANGELOG:
 ---------
+v2.10.3 (2026-01-29)
+  - CHANGED: Country list limited to English-education countries
+  - Removed: China, Brazil, Mexico, Egypt, Vietnam, Turkey (non-English primary)
+  - Added: Ghana, Tanzania, South Africa, Jamaica, Rwanda
+  - Kept: India, Pakistan, Nigeria, Bangladesh, Philippines, Kenya, Uganda, US, UK, Australia, Canada
+
 v2.10.2 (2026-01-29)
   - IMPROVED: PDF generation with triple-fallback system
   - IMPROVED: Unicode/emoji handling in safe() method - comprehensive replacements
@@ -52,7 +58,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.10.2"
+VERSION = "2.10.3"
 
 import os
 import logging
@@ -151,11 +157,11 @@ def get_random_topics(subject, count=8):
 
 
 COUNTRIES = [
-    ("🇮🇳", "India"), ("🇨🇳", "China"), ("🇺🇸", "United States"),
-    ("🇮🇩", "Indonesia"), ("🇧🇷", "Brazil"), ("🇵🇰", "Pakistan"),
-    ("🇳🇬", "Nigeria"), ("🇧🇩", "Bangladesh"), ("🇲🇽", "Mexico"),
-    ("🇵🇭", "Philippines"), ("🇪🇬", "Egypt"), ("🇻🇳", "Vietnam"),
-    ("🇹🇷", "Turkey"), ("🇰🇪", "Kenya"), ("🇺🇬", "Uganda"),
+    ("🇮🇳", "India"), ("🇵🇰", "Pakistan"), ("🇳🇬", "Nigeria"),
+    ("🇧🇩", "Bangladesh"), ("🇵🇭", "Philippines"), ("🇰🇪", "Kenya"),
+    ("🇺🇬", "Uganda"), ("🇬🇭", "Ghana"), ("🇹🇿", "Tanzania"),
+    ("🇿🇦", "South Africa"), ("🇷🇼", "Rwanda"), ("🇯🇲", "Jamaica"),
+    ("🇺🇸", "United States"), ("🇬🇧", "United Kingdom"), ("🇦🇺", "Australia"),
 ]
 
 # ============================================================================
