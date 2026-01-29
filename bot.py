@@ -63,7 +63,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.10.4"
+VERSION = "2.10.5"
 
 import os
 import logging
@@ -377,47 +377,68 @@ class LessonPDF(FPDF):
         self.set_text_color(15, 23, 42)
         
         for line in content.split('\n'):
-            orig = line
-            line = line.strip()
-            
-            if not line:
-                self.ln(3)
-                continue
-            
-            safe = self.safe(line)
-            
-            if orig.startswith('## '):
-                self.ln(5)
-                self.set_font('Helvetica', 'B', 12)
-                self.set_text_color(15, 23, 42)
-                self.multi_cell(0, 6, safe.lstrip('# '))
-                self.set_draw_color(217, 119, 6)
-                self.set_line_width(0.5)
-                self.line(10, self.get_y() + 1, 55, self.get_y() + 1)
-                self.ln(4)
-                self.set_font('Helvetica', '', 10)
-                continue
-            
-            if orig.startswith('**') and orig.endswith('**'):
-                self.ln(3)
-                self.set_font('Helvetica', 'B', 10)
-                self.set_text_color(51, 65, 85)
+            try:
+                orig = line
+                line = line.strip()
+                
+                if not line:
+                    self.ln(3)
+                    continue
+                
+                safe = self.safe(line)
+                if not safe.strip():
+                    continue
+                
+                # Section headers (## )
+                if orig.startswith('## '):
+                    self.ln(5)
+                    self.set_font('Helvetica', 'B', 12)
+                    self.set_text_color(15, 23, 42)
+                    self.multi_cell(0, 6, safe.lstrip('# '))
+                    self.set_draw_color(217, 119, 6)
+                    self.set_line_width(0.5)
+                    self.line(10, self.get_y() + 1, 55, self.get_y() + 1)
+                    self.ln(4)
+                    self.set_font('Helvetica', '', 10)
+                    continue
+                
+                # H1 headers (# )
+                if orig.startswith('# ') and not orig.startswith('## '):
+                    self.ln(5)
+                    self.set_font('Helvetica', 'B', 14)
+                    self.set_text_color(15, 23, 42)
+                    self.multi_cell(0, 7, safe.lstrip('# '))
+                    self.ln(3)
+                    self.set_font('Helvetica', '', 10)
+                    continue
+                
+                # Bold lines
+                if orig.startswith('**') and orig.endswith('**'):
+                    self.ln(3)
+                    self.set_font('Helvetica', 'B', 10)
+                    self.set_text_color(51, 65, 85)
+                    self.multi_cell(0, 5, safe)
+                    self.set_font('Helvetica', '', 10)
+                    self.set_text_color(15, 23, 42)
+                    continue
+                
+                # Bullets
+                if orig.startswith('- ') or orig.startswith('* '):
+                    self.set_x(15)
+                    self.multi_cell(0, 5, '* ' + self.safe(orig[2:]))
+                    continue
+                
+                # Numbered lists
+                if len(orig) > 2 and orig[0].isdigit() and orig[1] in '.):':
+                    self.set_x(12)
+                    self.multi_cell(0, 5, safe)
+                    continue
+                
+                # Regular text
                 self.multi_cell(0, 5, safe)
-                self.set_font('Helvetica', '', 10)
-                self.set_text_color(15, 23, 42)
+            except Exception as line_error:
+                # If a single line fails, just skip it and continue
                 continue
-            
-            if orig.startswith('- ') or orig.startswith('* '):
-                self.set_x(15)
-                self.multi_cell(0, 5, '* ' + self.safe(orig[2:]))
-                continue
-            
-            if len(orig) > 2 and orig[0].isdigit() and orig[1] in '.):':
-                self.set_x(12)
-                self.multi_cell(0, 5, safe)
-                continue
-            
-            self.multi_cell(0, 5, safe)
 
 
 def create_lesson_pdf(content, params):
@@ -451,33 +472,67 @@ def create_lesson_pdf(content, params):
         pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=15)
         
-        # Title
-        pdf.set_font('Helvetica', 'B', 16)
-        pdf.cell(0, 10, 'Tooley Lesson Plan', ln=True)
-        pdf.ln(5)
+        # Header with branding
+        pdf.set_fill_color(217, 119, 6)
+        pdf.rect(10, 10, 4, 12, 'F')
+        pdf.set_xy(18, 10)
+        pdf.set_font('Helvetica', 'B', 18)
+        pdf.set_text_color(15, 23, 42)
+        pdf.cell(40, 12, 'tooley')
+        pdf.set_xy(150, 14)
+        pdf.set_font('Helvetica', '', 9)
+        pdf.set_text_color(100, 100, 100)
+        pdf.cell(50, 8, 'tooley.app', align='R')
+        pdf.ln(20)
         
-        # Specs
-        pdf.set_font('Helvetica', '', 10)
-        if params.get('subject'):
-            pdf.cell(0, 6, ascii_only(f"Subject: {params['subject']}"), ln=True)
-        if params.get('topic'):
-            pdf.cell(0, 6, ascii_only(f"Topic: {params['topic']}"), ln=True)
-        if params.get('ages'):
-            pdf.cell(0, 6, ascii_only(f"Ages: {params['ages']}"), ln=True)
-        pdf.ln(5)
+        # Specs box
+        pdf.set_fill_color(255, 251, 235)
+        pdf.set_draw_color(15, 23, 42)
+        specs_y = pdf.get_y()
+        spec_lines = []
+        if params.get('subject'): spec_lines.append(f"Subject: {params['subject']}")
+        if params.get('topic'): spec_lines.append(f"Topic: {params['topic']}")
+        if params.get('ages'): spec_lines.append(f"Ages: {params['ages']}")
+        if params.get('duration'): spec_lines.append(f"Duration: {params['duration']} min")
+        if params.get('country'): spec_lines.append(f"Location: {params['country']}")
         
-        # Content
+        box_h = 10 + len(spec_lines) * 6
+        pdf.rect(10, specs_y, 190, box_h, 'DF')
+        pdf.set_xy(15, specs_y + 4)
+        pdf.set_font('Helvetica', 'B', 9)
+        pdf.set_text_color(217, 119, 6)
+        pdf.cell(0, 5, 'LESSON SPECIFICATIONS')
+        pdf.ln(6)
+        pdf.set_font('Helvetica', '', 9)
+        pdf.set_text_color(15, 23, 42)
+        for spec in spec_lines:
+            pdf.set_x(15)
+            pdf.cell(0, 5, ascii_only(spec))
+            pdf.ln(5)
+        pdf.set_y(specs_y + box_h + 8)
+        
+        # Content - FULL content, no truncation
         pdf.set_font('Helvetica', '', 10)
         for line in content.split('\n'):
-            safe = ascii_only(line)[:100]
-            if safe.strip():
-                if safe.strip().startswith('##'):
-                    pdf.set_font('Helvetica', 'B', 12)
-                    pdf.ln(3)
-                    pdf.multi_cell(0, 6, safe.replace('#', '').strip())
-                    pdf.set_font('Helvetica', '', 10)
-                else:
-                    pdf.multi_cell(0, 5, safe)
+            safe = ascii_only(line)
+            if not safe.strip():
+                pdf.ln(3)
+                continue
+            if safe.strip().startswith('##'):
+                pdf.ln(4)
+                pdf.set_font('Helvetica', 'B', 12)
+                pdf.multi_cell(0, 6, safe.replace('#', '').strip())
+                pdf.set_font('Helvetica', '', 10)
+            elif safe.strip().startswith('**') and safe.strip().endswith('**'):
+                pdf.ln(2)
+                pdf.set_font('Helvetica', 'B', 10)
+                pdf.multi_cell(0, 5, safe.replace('*', ''))
+                pdf.set_font('Helvetica', '', 10)
+            elif safe.strip().startswith('- ') or safe.strip().startswith('* '):
+                pdf.set_x(15)
+                pdf.multi_cell(0, 5, '* ' + safe.strip()[2:])
+            else:
+                pdf.multi_cell(0, 5, safe)
         
         pdf_buffer = BytesIO()
         pdf_output = pdf.output()
@@ -489,13 +544,18 @@ def create_lesson_pdf(content, params):
         logger.error(f"PDF attempt 2 failed: {e2}")
         logger.error(traceback.format_exc())
     
-    # ATTEMPT 3: Absolute minimal PDF
+    # ATTEMPT 3: Absolute minimal PDF (full content, just plain text)
     try:
         logger.info("PDF attempt 3: Minimal")
         pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=15)
         pdf.add_page()
-        pdf.set_font('Helvetica', '', 12)
-        pdf.multi_cell(0, 6, ascii_only(content[:3000]))
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.cell(0, 10, 'Tooley Lesson Plan')
+        pdf.ln(12)
+        pdf.set_font('Helvetica', '', 10)
+        # Full content - no truncation
+        pdf.multi_cell(0, 5, ascii_only(content))
         
         pdf_buffer = BytesIO()
         pdf_buffer.write(pdf.output())
