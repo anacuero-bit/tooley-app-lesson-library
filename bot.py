@@ -233,6 +233,19 @@ class LessonPDF(FPDF):
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, 'tooley.app | Free lesson plans for teachers everywhere', align='C')
     
+    def _break_long_words(self, text: str, max_chars: int = 60) -> str:
+        """Break very long words to prevent PDF rendering issues."""
+        words = text.split(' ')
+        result = []
+        for word in words:
+            if len(word) > max_chars:
+                # Break long word into chunks
+                chunks = [word[i:i+max_chars] for i in range(0, len(word), max_chars)]
+                result.append(' '.join(chunks))
+            else:
+                result.append(word)
+        return ' '.join(result)
+    
     def add_lesson_content(self, content: str, params: dict):
         """Add the lesson content to PDF."""
         
@@ -244,7 +257,8 @@ class LessonPDF(FPDF):
         subject = params.get('subject', '')
         title = f"{subject}: {topic}" if subject else topic
         # Use multi_cell for title to handle long titles
-        self.multi_cell(0, 10, self._safe_text(title[:80]))  # Truncate if too long
+        safe_title = self._safe_text(title[:80])
+        self.multi_cell(0, 10, safe_title)
         
         # Metadata line
         self.set_font('Helvetica', '', 10)
@@ -272,27 +286,32 @@ class LessonPDF(FPDF):
                 self.ln(3)
                 continue
             
-            # Sanitize line first
-            safe_line = self._safe_text(line)
+            # Sanitize and break long words
+            safe_line = self._break_long_words(self._safe_text(line))
             
-            # Detect headers (lines in ALL CAPS or ending with :)
-            if line.isupper() or (line.endswith(':') and len(line) < 50):
-                self.ln(3)
-                self.set_font('Helvetica', 'B', 11)
-                self.set_text_color(30, 123, 70)
-                self.multi_cell(0, 6, safe_line)
-                self.set_font('Helvetica', '', 11)
-                self.set_text_color(26, 26, 46)
-            # Bullet points - use text indent instead of cell
-            elif line.startswith('- ') or line.startswith('• ') or line.startswith('* '):
-                bullet_text = '  - ' + self._safe_text(line[2:])
-                self.multi_cell(0, 6, bullet_text)
-            # Numbered items
-            elif len(line) > 2 and line[0].isdigit() and line[1] in '.):':
-                self.multi_cell(0, 6, safe_line)
-            # Regular text
-            else:
-                self.multi_cell(0, 6, safe_line)
+            try:
+                # Detect headers (lines in ALL CAPS or ending with :)
+                if line.isupper() or (line.endswith(':') and len(line) < 50):
+                    self.ln(3)
+                    self.set_font('Helvetica', 'B', 11)
+                    self.set_text_color(30, 123, 70)
+                    self.multi_cell(0, 6, safe_line)
+                    self.set_font('Helvetica', '', 11)
+                    self.set_text_color(26, 26, 46)
+                # Bullet points
+                elif line.startswith('- ') or line.startswith('• ') or line.startswith('* '):
+                    bullet_text = '  - ' + self._break_long_words(self._safe_text(line[2:]))
+                    self.multi_cell(0, 6, bullet_text)
+                # Numbered items
+                elif len(line) > 2 and line[0].isdigit() and line[1] in '.):':
+                    self.multi_cell(0, 6, safe_line)
+                # Regular text
+                else:
+                    self.multi_cell(0, 6, safe_line)
+            except Exception as e:
+                # If a line fails, just skip it and continue
+                logger.warning(f"PDF line rendering failed: {e}")
+                continue
     
     def _safe_text(self, text: str) -> str:
         """Convert text to safe ASCII for PDF."""
@@ -328,16 +347,28 @@ class LessonPDF(FPDF):
 def create_lesson_pdf(content: str, params: dict) -> BytesIO:
     """Create a PDF from lesson content."""
     
-    pdf = LessonPDF()
-    pdf.add_lesson_content(content, params)
-    
-    # Output to BytesIO
-    pdf_buffer = BytesIO()
-    pdf_output = pdf.output()
-    pdf_buffer.write(pdf_output)
-    pdf_buffer.seek(0)
-    
-    return pdf_buffer
+    try:
+        pdf = LessonPDF()
+        pdf.add_lesson_content(content, params)
+        
+        # Output to BytesIO
+        pdf_buffer = BytesIO()
+        pdf_output = pdf.output()
+        pdf_buffer.write(pdf_output)
+        pdf_buffer.seek(0)
+        
+        return pdf_buffer
+    except Exception as e:
+        logger.error(f"PDF creation failed: {e}")
+        # Return a simple fallback PDF
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font('Helvetica', '', 12)
+        pdf.multi_cell(0, 10, "Lesson plan generated - see text version above.")
+        pdf_buffer = BytesIO()
+        pdf_buffer.write(pdf.output())
+        pdf_buffer.seek(0)
+        return pdf_buffer
 
 
 # ============================================================================
