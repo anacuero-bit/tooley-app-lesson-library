@@ -2,11 +2,17 @@
 Tooley - Lesson Plan Generator Bot
 Telegram bot that generates customized lesson plans for teachers worldwide.
 
-Version: 2.10.1
+Version: 2.10.2
 Last Updated: 2026-01-29
 
 CHANGELOG:
 ---------
+v2.10.2 (2026-01-29)
+  - IMPROVED: PDF generation with triple-fallback system
+  - IMPROVED: Unicode/emoji handling in safe() method - comprehensive replacements
+  - IMPROVED: Better PDF logging with byte sizes
+  - FIXED: PDF emoji crashes (checkmarks, stars, arrows, etc. now converted)
+  
 v2.10.1 (2026-01-29)
   - FIXED: Format menu now shows Chat+PDF | Chat+HTML (not HTML+PDF)
   - FIXED: HTML output now has ACTUAL SVG logo embedded
@@ -46,7 +52,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.10.1"
+VERSION = "2.10.2"
 
 import os
 import logging
@@ -305,11 +311,17 @@ class LessonPDF(FPDF):
         if not text:
             return ""
         text = str(text).replace('**', '')
+        # Common replacements
         replacements = {'→': '->', '←': '<-', '•': '*', '–': '-', '—': '-',
-            '"': '"', '"': '"', ''': "'", ''': "'", '…': '...'}
+            '"': '"', '"': '"', ''': "'", ''': "'", '…': '...',
+            '✓': '[x]', '✗': '[ ]', '★': '*', '☆': '*', '●': '*', '○': 'o',
+            '▪': '-', '▸': '>', '◦': 'o', '✔': '[x]', '✘': '[ ]',
+            '📚': '', '📖': '', '✏': '', '🎯': '', '💡': '', '⏱': '', '👥': '',
+            '🔹': '-', '🔸': '-', '📝': '', '🌟': '*', '⭐': '*'}
         for old, new in replacements.items():
             text = text.replace(old, new)
-        return text.encode('ascii', 'replace').decode('ascii')
+        # Strip any remaining non-ASCII
+        return ''.join(c if ord(c) < 128 else '' for c in text)
     
     def write_specs(self, params):
         self.set_fill_color(250, 250, 245)
@@ -398,38 +410,91 @@ class LessonPDF(FPDF):
 
 
 def create_lesson_pdf(content, params):
+    """Generate PDF with multiple fallback levels"""
+    
+    # Helper to strip ALL non-ASCII
+    def ascii_only(text):
+        return ''.join(c if ord(c) < 128 else ' ' for c in str(text))
+    
+    # ATTEMPT 1: Full styled PDF
     try:
+        logger.info("PDF attempt 1: Full styled")
         pdf = LessonPDF(params)
         pdf.write_specs(params)
         pdf.write_content(content)
         
         pdf_buffer = BytesIO()
-        pdf_buffer.write(pdf.output())
+        pdf_output = pdf.output()
+        pdf_buffer.write(pdf_output)
         pdf_buffer.seek(0)
-        logger.info("PDF created successfully")
+        logger.info(f"PDF created successfully, size: {len(pdf_output)} bytes")
         return pdf_buffer
     except Exception as e:
-        logger.error(f"PDF creation failed: {e}")
+        logger.error(f"PDF attempt 1 failed: {e}")
         logger.error(traceback.format_exc())
-        # Fallback - simplified PDF
-        try:
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font('Helvetica', 'B', 16)
-            pdf.cell(0, 10, "Tooley Lesson Plan")
-            pdf.ln(15)
-            pdf.set_font('Helvetica', '', 10)
-            for line in content.split('\n')[:100]:
-                safe = ''.join(c if ord(c) < 128 else '?' for c in line)[:90]
-                if safe.strip():
+    
+    # ATTEMPT 2: Simple PDF with basic formatting
+    try:
+        logger.info("PDF attempt 2: Simple format")
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        
+        # Title
+        pdf.set_font('Helvetica', 'B', 16)
+        pdf.cell(0, 10, 'Tooley Lesson Plan', ln=True)
+        pdf.ln(5)
+        
+        # Specs
+        pdf.set_font('Helvetica', '', 10)
+        if params.get('subject'):
+            pdf.cell(0, 6, ascii_only(f"Subject: {params['subject']}"), ln=True)
+        if params.get('topic'):
+            pdf.cell(0, 6, ascii_only(f"Topic: {params['topic']}"), ln=True)
+        if params.get('ages'):
+            pdf.cell(0, 6, ascii_only(f"Ages: {params['ages']}"), ln=True)
+        pdf.ln(5)
+        
+        # Content
+        pdf.set_font('Helvetica', '', 10)
+        for line in content.split('\n'):
+            safe = ascii_only(line)[:100]
+            if safe.strip():
+                if safe.strip().startswith('##'):
+                    pdf.set_font('Helvetica', 'B', 12)
+                    pdf.ln(3)
+                    pdf.multi_cell(0, 6, safe.replace('#', '').strip())
+                    pdf.set_font('Helvetica', '', 10)
+                else:
                     pdf.multi_cell(0, 5, safe)
-            pdf_buffer = BytesIO()
-            pdf_buffer.write(pdf.output())
-            pdf_buffer.seek(0)
-            return pdf_buffer
-        except Exception as e2:
-            logger.error(f"PDF fallback also failed: {e2}")
-            return None
+        
+        pdf_buffer = BytesIO()
+        pdf_output = pdf.output()
+        pdf_buffer.write(pdf_output)
+        pdf_buffer.seek(0)
+        logger.info(f"PDF attempt 2 success, size: {len(pdf_output)} bytes")
+        return pdf_buffer
+    except Exception as e2:
+        logger.error(f"PDF attempt 2 failed: {e2}")
+        logger.error(traceback.format_exc())
+    
+    # ATTEMPT 3: Absolute minimal PDF
+    try:
+        logger.info("PDF attempt 3: Minimal")
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font('Helvetica', '', 12)
+        pdf.multi_cell(0, 6, ascii_only(content[:3000]))
+        
+        pdf_buffer = BytesIO()
+        pdf_buffer.write(pdf.output())
+        pdf_buffer.seek(0)
+        logger.info("PDF attempt 3 success")
+        return pdf_buffer
+    except Exception as e3:
+        logger.error(f"PDF attempt 3 failed: {e3}")
+        logger.error(traceback.format_exc())
+        return None
 
 
 def generate_lesson_filename(params):
