@@ -2,11 +2,19 @@
 Tooley - Lesson Plan Generator Bot
 Telegram bot that generates customized lesson plans for teachers worldwide.
 
-Version: 2.2.0
+Version: 2.3.0
 Last Updated: 2026-01-29
 
 CHANGELOG:
 ---------
+v2.3.0 (2026-01-29)
+  - PDF REDESIGN: Navy primary, amber accents only, proper logo styling
+  - TOPIC EXPANSION: 25+ topics per subject, 8 randomized shown each time
+  - Added sub-categories for topic browsing
+  - Free text always available but click-first UX preserved
+  - Improved color contrast throughout PDF
+  - Less saturated amber, more professional look
+
 v2.2.0 (2026-01-29)
   - Applied Tooley brand colors to PDF (amber #f59e0b instead of green)
   - Updated ages emoji to medium-brown skin tone 🧒🏽
@@ -42,13 +50,14 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.2.0"
+VERSION = "2.3.0"
 
 import os
 import logging
 import json
 import hashlib
 import base64
+import random
 from datetime import datetime
 from io import BytesIO
 import httpx
@@ -78,6 +87,280 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "tooley/lesson-library")
 LESSONS_FILE = "lessons.json"
+
+# ============================================================================
+# TOPIC POOLS - Comprehensive lists for each subject (v2.3.0)
+# Show 8 random topics from each pool, always offer free text
+# ============================================================================
+
+TOPIC_POOLS = {
+    "Mathematics": {
+        "Numbers & Operations": [
+            "Addition and Subtraction",
+            "Multiplication Tables",
+            "Division Basics",
+            "Place Value",
+            "Counting and Number Sense",
+            "Comparing Numbers",
+            "Rounding Numbers",
+            "Odd and Even Numbers",
+        ],
+        "Fractions & Decimals": [
+            "Introduction to Fractions",
+            "Comparing Fractions",
+            "Adding Fractions",
+            "Fractions and Parts of a Whole",
+            "Mixed Numbers",
+            "Introduction to Decimals",
+            "Percentages Basics",
+        ],
+        "Geometry & Measurement": [
+            "Shapes and Their Properties",
+            "Perimeter",
+            "Area",
+            "Angles and Lines",
+            "Symmetry",
+            "3D Shapes",
+            "Measuring Length",
+            "Measuring Weight and Volume",
+            "Telling Time",
+            "Reading Calendars",
+        ],
+        "Problem Solving": [
+            "Word Problems",
+            "Mental Math Strategies",
+            "Estimation",
+            "Patterns and Sequences",
+            "Money and Currency",
+            "Data and Graphs",
+            "Probability Basics",
+        ],
+    },
+    "Reading": {
+        "Foundational Skills": [
+            "Letter Recognition",
+            "Phonics and Letter Sounds",
+            "Blending Sounds",
+            "Sight Words",
+            "Syllables",
+            "Word Families",
+            "Decoding Strategies",
+        ],
+        "Comprehension": [
+            "Reading Comprehension",
+            "Main Idea and Details",
+            "Making Predictions",
+            "Cause and Effect",
+            "Sequencing Events",
+            "Comparing and Contrasting",
+            "Drawing Conclusions",
+            "Asking Questions While Reading",
+        ],
+        "Vocabulary & Fluency": [
+            "Building Vocabulary",
+            "Context Clues",
+            "Synonyms and Antonyms",
+            "Reading Fluently",
+            "Expression in Reading",
+            "Dictionary Skills",
+        ],
+        "Literary Elements": [
+            "Characters and Setting",
+            "Plot and Story Structure",
+            "Fiction vs Non-Fiction",
+            "Author's Purpose",
+            "Point of View",
+            "Genres of Literature",
+        ],
+    },
+    "Science": {
+        "Life Science": [
+            "Plants and How They Grow",
+            "Animal Classification",
+            "Animal Habitats",
+            "Life Cycles",
+            "Food Chains",
+            "Ecosystems",
+            "The Human Body",
+            "Five Senses",
+            "Healthy Habits and Nutrition",
+            "Insects and Their World",
+        ],
+        "Earth Science": [
+            "Weather and Seasons",
+            "The Water Cycle",
+            "Rocks and Minerals",
+            "Soil and Earth Layers",
+            "Volcanoes and Earthquakes",
+            "Oceans and Seas",
+            "Climate and Environment",
+            "Day and Night",
+        ],
+        "Space": [
+            "The Solar System",
+            "The Sun and Moon",
+            "Stars and Constellations",
+            "Phases of the Moon",
+            "Planets",
+        ],
+        "Physical Science": [
+            "States of Matter",
+            "Forces and Motion",
+            "Simple Machines",
+            "Magnets",
+            "Sound and Vibrations",
+            "Light and Shadows",
+            "Heat and Temperature",
+            "Electricity Basics",
+            "Properties of Materials",
+        ],
+    },
+    "Social Studies": {
+        "Community & Society": [
+            "Community Helpers",
+            "Rules and Laws",
+            "Being a Good Citizen",
+            "Rights and Responsibilities",
+            "Local Government",
+            "Jobs and Careers",
+        ],
+        "Geography": [
+            "Maps and Globes",
+            "Continents and Oceans",
+            "Countries and Capitals",
+            "Landforms",
+            "Urban and Rural Areas",
+            "Natural Resources",
+            "Climate Zones",
+        ],
+        "History & Culture": [
+            "Family and Traditions",
+            "Holidays and Celebrations",
+            "Cultural Diversity",
+            "Historical Figures",
+            "Timeline and Chronology",
+            "Ancient Civilizations",
+            "National History",
+        ],
+        "Economics": [
+            "Needs vs Wants",
+            "Goods and Services",
+            "Money and Saving",
+            "Trade and Exchange",
+            "Jobs and Economy",
+        ],
+        "Environment": [
+            "Caring for the Environment",
+            "Recycling and Reduce-Reuse",
+            "Conservation",
+            "Pollution and Its Effects",
+            "Sustainable Living",
+        ],
+    },
+    "Arts": {
+        "Visual Arts": [
+            "Drawing and Sketching",
+            "Painting Techniques",
+            "Colors and Color Mixing",
+            "Shapes in Art",
+            "Patterns and Designs",
+            "Collage and Mixed Media",
+            "Famous Artists",
+            "Art from Around the World",
+        ],
+        "Crafts": [
+            "Paper Crafts",
+            "Recycled Art",
+            "Weaving and Textiles",
+            "Clay and Modeling",
+            "Origami",
+            "Seasonal Crafts",
+        ],
+        "Music & Movement": [
+            "Rhythm and Beat",
+            "Singing Songs",
+            "Musical Instruments",
+            "Dance and Movement",
+            "Music from Different Cultures",
+            "Creating Music",
+        ],
+        "Drama": [
+            "Role Play and Acting",
+            "Puppet Shows",
+            "Storytelling Performance",
+            "Expressing Emotions",
+            "Reader's Theater",
+        ],
+    },
+    "Language": {
+        "Grammar": [
+            "Nouns and Verbs",
+            "Adjectives and Adverbs",
+            "Pronouns",
+            "Sentence Structure",
+            "Punctuation",
+            "Capitalization",
+            "Subject-Verb Agreement",
+            "Tenses (Past, Present, Future)",
+        ],
+        "Writing": [
+            "Writing Sentences",
+            "Writing Paragraphs",
+            "Narrative Writing",
+            "Descriptive Writing",
+            "Letter Writing",
+            "Creative Writing",
+            "Journal Writing",
+            "Writing Process",
+        ],
+        "Speaking & Listening": [
+            "Speaking Practice",
+            "Oral Presentations",
+            "Following Directions",
+            "Active Listening",
+            "Asking and Answering Questions",
+            "Group Discussions",
+        ],
+        "Spelling & Handwriting": [
+            "Spelling Patterns",
+            "High-Frequency Words",
+            "Handwriting Practice",
+            "Letter Formation",
+        ],
+    },
+}
+
+def get_random_topics(subject: str, count: int = 8) -> list:
+    """Get random topics from a subject's pool, sampling across categories."""
+    if subject not in TOPIC_POOLS:
+        return []
+    
+    # Collect all topics from all categories
+    all_topics = []
+    for category, topics in TOPIC_POOLS[subject].items():
+        for topic in topics:
+            all_topics.append((topic, category))
+    
+    # Randomly sample
+    if len(all_topics) <= count:
+        selected = all_topics
+    else:
+        selected = random.sample(all_topics, count)
+    
+    # Return just the topic names
+    return [topic for topic, category in selected]
+
+def get_topic_categories(subject: str) -> list:
+    """Get the category names for a subject."""
+    if subject not in TOPIC_POOLS:
+        return []
+    return list(TOPIC_POOLS[subject].keys())
+
+def get_topics_in_category(subject: str, category: str) -> list:
+    """Get all topics in a specific category."""
+    if subject not in TOPIC_POOLS:
+        return []
+    return TOPIC_POOLS[subject].get(category, [])
 
 # Logging
 logging.basicConfig(
@@ -247,7 +530,15 @@ def generate_lesson(params: dict) -> str:
 # ============================================================================
 
 class LessonPDF(FPDF):
-    """Custom PDF class for lesson plans with Tooley branding."""
+    """Custom PDF class for lesson plans with Tooley branding.
+    
+    Brand Colors (v2.3.0):
+    - Navy (primary): #0f172a / RGB(15, 23, 42)
+    - Slate (secondary): #334155 / RGB(51, 65, 85)
+    - Amber (accent): #d97706 / RGB(217, 119, 6) - darker, less saturated
+    - Amber Light: #fbbf24 / RGB(251, 191, 36) - for highlights
+    - Cream background: #fffbeb / RGB(255, 251, 235)
+    """
     
     def __init__(self, params: dict = None):
         super().__init__()
@@ -256,17 +547,34 @@ class LessonPDF(FPDF):
         self.set_auto_page_break(auto=True, margin=20)
     
     def header(self):
-        # Tooley branded header - Amber brand colors
-        self.set_font('Helvetica', 'B', 16)
-        self.set_text_color(245, 158, 11)  # Tooley Amber #f59e0b
-        self.cell(0, 8, 'TOOLEY', align='L')
+        # --- TOOLEY LOGO ---
+        # Draw amber accent bar at top
+        self.set_fill_color(217, 119, 6)  # Amber accent #d97706
+        self.rect(10, 10, 4, 12, 'F')  # Small vertical accent bar
+        
+        # Logo text "tooley" in navy
+        self.set_xy(18, 10)
+        self.set_font('Helvetica', 'B', 20)
+        self.set_text_color(15, 23, 42)  # Navy #0f172a
+        self.cell(40, 12, 'tooley', align='L')
+        
+        # Tagline
+        self.set_xy(10, 22)
+        self.set_font('Helvetica', '', 8)
+        self.set_text_color(100, 116, 139)  # Stone #64748b
+        self.cell(0, 5, 'AI Lesson Plans for Teachers', align='L')
+        
+        # Page indicator on right
+        self.set_xy(160, 10)
         self.set_font('Helvetica', '', 9)
-        self.set_text_color(100, 116, 139)  # Stone gray #64748b
-        self.cell(0, 8, 'Lesson Plans for Teachers', align='R')
-        self.ln(12)
-        # Divider line
-        self.set_draw_color(245, 158, 11)  # Tooley Amber
-        self.set_line_width(0.5)
+        self.set_text_color(100, 116, 139)
+        self.cell(40, 12, 'tooley.app', align='R')
+        
+        self.ln(22)
+        
+        # Divider line - navy, not amber
+        self.set_draw_color(15, 23, 42)  # Navy
+        self.set_line_width(0.3)
         self.line(10, self.get_y(), 200, self.get_y())
         self.ln(8)
     
@@ -281,7 +589,9 @@ class LessonPDF(FPDF):
         self.set_text_color(128, 128, 128)
         self.cell(0, 5, f'Page {self.page_no()}', align='C')
         self.ln(4)
-        self.cell(0, 5, 'tooley.app | Free lesson plans for teachers everywhere', align='C')
+        self.set_font('Helvetica', '', 8)
+        self.set_text_color(100, 116, 139)
+        self.cell(0, 5, 'Generated by Tooley | tooley.app | Free for all teachers', align='C')
     
     def _break_long_words(self, text: str, max_chars: int = 55) -> str:
         """Break very long words to prevent PDF rendering issues."""
@@ -296,9 +606,11 @@ class LessonPDF(FPDF):
         return ' '.join(result)
     
     def add_specs_box(self, params: dict):
-        """Add a branded lesson specs box at the top."""
-        self.set_fill_color(254, 243, 199)  # Amber Pale #fef3c7
-        self.set_draw_color(245, 158, 11)   # Tooley Amber #f59e0b
+        """Add a branded lesson specs box - cream bg, navy border, amber title."""
+        # Cream background with navy border
+        self.set_fill_color(255, 251, 235)  # Warm cream #fffbeb
+        self.set_draw_color(15, 23, 42)     # Navy border #0f172a
+        self.set_line_width(0.5)
         
         # Calculate box height based on content
         specs = []
@@ -319,17 +631,19 @@ class LessonPDF(FPDF):
             style_map = {'interactive': 'Interactive', 'structured': 'Structured', 'storytelling': 'Story-based'}
             specs.append(f"Style: {style_map.get(params['style'], params['style'])}")
         
-        box_height = 8 + (len(specs) * 6)
+        box_height = 10 + (len(specs) * 6)
         self.rect(10, self.get_y(), 190, box_height, 'DF')
         
+        # Title with amber accent
         self.set_xy(15, self.get_y() + 4)
         self.set_font('Helvetica', 'B', 10)
-        self.set_text_color(217, 119, 6)  # Amber Dark #d97706
+        self.set_text_color(217, 119, 6)  # Amber accent #d97706
         self.cell(0, 5, 'LESSON SPECIFICATIONS')
-        self.ln(6)
+        self.ln(7)
         
+        # Specs in navy text
         self.set_font('Helvetica', '', 9)
-        self.set_text_color(51, 65, 85)  # Slate #334155
+        self.set_text_color(15, 23, 42)  # Navy #0f172a
         for spec in specs:
             self.set_x(15)
             self.cell(0, 5, self._safe_text(spec))
@@ -338,14 +652,21 @@ class LessonPDF(FPDF):
         self.ln(8)
     
     def add_lesson_content(self, content: str, params: dict):
-        """Add the lesson content to PDF with improved formatting."""
+        """Add the lesson content to PDF with improved formatting.
+        
+        Color scheme v2.3.0:
+        - Main headers: Navy (#0f172a) - prominent, professional
+        - Section headers: Slate (#334155) - secondary
+        - Body text: Navy (#0f172a) - readable
+        - Accent underlines: Amber (#d97706) - subtle highlights
+        """
         
         # Add specs box first
         self.add_specs_box(params)
         
         # Main content
         self.set_font('Helvetica', '', 10)
-        self.set_text_color(15, 23, 42)  # Dark #0f172a
+        self.set_text_color(15, 23, 42)  # Navy #0f172a
         
         in_section = False
         
@@ -358,34 +679,40 @@ class LessonPDF(FPDF):
             safe_line = self._break_long_words(self._safe_text(line))
             
             try:
-                # Main headers (## or lines starting with #)
+                # Main headers (## or lines starting with #) - NAVY with amber underline
                 if line.startswith('## ') or line.startswith('# '):
                     self.ln(6)
                     self.set_font('Helvetica', 'B', 12)
-                    self.set_text_color(217, 119, 6)  # Amber Dark #d97706
+                    self.set_text_color(15, 23, 42)  # Navy #0f172a (not amber!)
                     header_text = safe_line.lstrip('#').strip()
                     self.multi_cell(0, 7, header_text)
+                    # Small amber accent line under header
+                    self.set_draw_color(217, 119, 6)  # Amber
+                    self.set_line_width(0.5)
+                    self.line(10, self.get_y(), 50, self.get_y())
                     self.set_font('Helvetica', '', 10)
-                    self.set_text_color(15, 23, 42)  # Dark
-                    self.ln(2)
+                    self.set_text_color(15, 23, 42)  # Navy
+                    self.ln(4)
                     in_section = True
                 
-                # Bold lines (**text**)
+                # Bold lines (**text**) - Slate
                 elif line.startswith('**') and line.endswith('**'):
                     self.ln(3)
                     self.set_font('Helvetica', 'B', 10)
+                    self.set_text_color(51, 65, 85)  # Slate
                     clean_text = safe_line.strip('*').strip()
                     self.multi_cell(0, 6, clean_text)
                     self.set_font('Helvetica', '', 10)
+                    self.set_text_color(15, 23, 42)  # Navy
                 
-                # Section headers (lines ending with :)
+                # Section headers (lines ending with :) - Slate
                 elif line.endswith(':') and len(line) < 60 and not line.startswith('-'):
                     self.ln(4)
                     self.set_font('Helvetica', 'B', 10)
                     self.set_text_color(51, 65, 85)  # Slate #334155
                     self.multi_cell(0, 6, safe_line)
                     self.set_font('Helvetica', '', 10)
-                    self.set_text_color(15, 23, 42)  # Dark
+                    self.set_text_color(15, 23, 42)  # Navy
                 
                 # Bullet points
                 elif line.startswith('- ') or line.startswith('* ') or line.startswith('• '):
@@ -998,59 +1325,78 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session['params']['subject'] = subject
         session['state'] = 'awaiting_topic'
         
-        # Offer popular topic suggestions based on subject
-        topic_suggestions = {
-            "Mathematics": [
-                ("Addition/Subtraction", "topic_Addition and Subtraction"),
-                ("Multiplication", "topic_Multiplication"),
-                ("Fractions", "topic_Fractions"),
-                ("Shapes & Geometry", "topic_Shapes and Geometry"),
-            ],
-            "Reading": [
-                ("Reading Comprehension", "topic_Reading Comprehension"),
-                ("Phonics", "topic_Phonics and Letter Sounds"),
-                ("Storytelling", "topic_Storytelling"),
-                ("Vocabulary", "topic_Building Vocabulary"),
-            ],
-            "Science": [
-                ("Plants & Animals", "topic_Plants and Animals"),
-                ("Human Body", "topic_The Human Body"),
-                ("Water Cycle", "topic_Water Cycle"),
-                ("Simple Machines", "topic_Simple Machines"),
-            ],
-            "Social Studies": [
-                ("Community Helpers", "topic_Community Helpers"),
-                ("Maps & Directions", "topic_Maps and Directions"),
-                ("Family & Culture", "topic_Family and Culture"),
-                ("Environment", "topic_Caring for Environment"),
-            ],
-            "Arts": [
-                ("Drawing", "topic_Drawing and Sketching"),
-                ("Music & Rhythm", "topic_Music and Rhythm"),
-                ("Drama/Role Play", "topic_Drama and Role Play"),
-                ("Crafts", "topic_Simple Crafts"),
-            ],
-            "Language": [
-                ("Sentence Building", "topic_Building Sentences"),
-                ("Speaking Practice", "topic_Speaking Practice"),
-                ("Writing Stories", "topic_Writing Short Stories"),
-                ("Grammar Basics", "topic_Basic Grammar"),
-            ],
-        }
+        # Show topic categories for this subject OR random topics
+        # First show categories, let them drill down OR pick random
+        categories = get_topic_categories(subject)
         
-        suggestions = topic_suggestions.get(subject, [
-            ("Custom topic", "topic_custom"),
-        ])
+        if categories:
+            # Two-tier system: Categories OR random sampling
+            keyboard = []
+            
+            # Add category buttons (2 per row)
+            for i in range(0, len(categories), 2):
+                row = []
+                for cat in categories[i:i+2]:
+                    # Truncate long category names
+                    display_name = cat if len(cat) <= 20 else cat[:18] + "..."
+                    row.append(InlineKeyboardButton(display_name, callback_data=f"topiccat_{cat}"))
+                keyboard.append(row)
+            
+            # Add "Surprise me" and "Type my own" options
+            keyboard.append([InlineKeyboardButton("🎲 Surprise me (8 random topics)", callback_data="topiccat_random")])
+            keyboard.append([InlineKeyboardButton("✏️ Type my own topic...", callback_data="topic_custom")])
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            summary = build_selection_summary(session['params'])
+            await query.edit_message_text(
+                f"{summary}\n\n📂 *Choose a category or get random suggestions:*",
+                reply_markup=reply_markup,
+                parse_mode='Markdown'
+            )
+        else:
+            # Fallback for unknown subjects
+            session['state'] = 'awaiting_topic'
+            summary = build_selection_summary(session['params'])
+            await query.edit_message_text(
+                f"{summary}\n\n✏️ *Type your topic:*",
+                parse_mode='Markdown'
+            )
+        return
+    
+    # Topic category selection (new v2.3.0)
+    if data.startswith("topiccat_"):
+        category = data.replace("topiccat_", "")
+        subject = session['params'].get('subject', '')
         
-        keyboard = []
-        for label, callback in suggestions:
-            keyboard.append([InlineKeyboardButton(label, callback_data=callback)])
-        keyboard.append([InlineKeyboardButton("✏️ Type my own topic...", callback_data="topic_custom")])
+        if category == "random":
+            # Get 8 random topics from the full pool
+            random_topics = get_random_topics(subject, 8)
+            keyboard = []
+            for topic in random_topics:
+                callback = f"topic_{topic}"
+                if len(callback) > 64:  # Telegram limit
+                    callback = f"topic_{topic[:55]}"
+                keyboard.append([InlineKeyboardButton(topic, callback_data=callback)])
+            keyboard.append([InlineKeyboardButton("🎲 Shuffle (new 8)", callback_data="topiccat_random")])
+            keyboard.append([InlineKeyboardButton("📂 Back to categories", callback_data=f"subject_{subject}")])
+            keyboard.append([InlineKeyboardButton("✏️ Type my own topic...", callback_data="topic_custom")])
+        else:
+            # Show all topics in this category
+            topics = get_topics_in_category(subject, category)
+            keyboard = []
+            for topic in topics:
+                callback = f"topic_{topic}"
+                if len(callback) > 64:
+                    callback = f"topic_{topic[:55]}"
+                keyboard.append([InlineKeyboardButton(topic, callback_data=callback)])
+            keyboard.append([InlineKeyboardButton("📂 Back to categories", callback_data=f"subject_{subject}")])
+            keyboard.append([InlineKeyboardButton("✏️ Type my own topic...", callback_data="topic_custom")])
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         summary = build_selection_summary(session['params'])
+        category_label = "Random selection" if category == "random" else category
         await query.edit_message_text(
-            f"{summary}\n\n📝 *Pick a topic or type your own:*",
+            f"{summary}\n\n📝 *{category_label}* - Pick a topic:",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -1530,55 +1876,24 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     if data == "action_new_topic":
-        # Keep same params but choose new topic - loop back to topic selection
+        # Keep same params but choose new topic - show categories
         session['state'] = 'awaiting_topic'
-        
-        # Show topic suggestions based on current subject
         subject = session['params'].get('subject', '')
-        topic_suggestions = {
-            "Mathematics": [
-                ("Addition/Subtraction", "topic_Addition and Subtraction"),
-                ("Multiplication", "topic_Multiplication"),
-                ("Fractions", "topic_Fractions"),
-                ("Shapes & Geometry", "topic_Shapes and Geometry"),
-            ],
-            "Reading": [
-                ("Reading Comprehension", "topic_Reading Comprehension"),
-                ("Phonics", "topic_Phonics and Letter Sounds"),
-                ("Storytelling", "topic_Storytelling"),
-                ("Vocabulary", "topic_Building Vocabulary"),
-            ],
-            "Science": [
-                ("Plants & Animals", "topic_Plants and Animals"),
-                ("Human Body", "topic_The Human Body"),
-                ("Water Cycle", "topic_Water Cycle"),
-                ("Simple Machines", "topic_Simple Machines"),
-            ],
-            "Social Studies": [
-                ("Community Helpers", "topic_Community Helpers"),
-                ("Maps & Directions", "topic_Maps and Directions"),
-                ("Family & Culture", "topic_Family and Culture"),
-                ("Environment", "topic_Caring for Environment"),
-            ],
-            "Arts": [
-                ("Drawing", "topic_Drawing and Sketching"),
-                ("Music & Rhythm", "topic_Music and Rhythm"),
-                ("Drama/Role Play", "topic_Drama and Role Play"),
-                ("Crafts", "topic_Simple Crafts"),
-            ],
-            "Language": [
-                ("Sentence Building", "topic_Building Sentences"),
-                ("Speaking Practice", "topic_Speaking Practice"),
-                ("Writing Stories", "topic_Writing Short Stories"),
-                ("Grammar Basics", "topic_Basic Grammar"),
-            ],
-        }
         
-        suggestions = topic_suggestions.get(subject, [])
+        # Use the new category system (v2.3.0)
+        categories = get_topic_categories(subject)
         
         keyboard = []
-        for label, callback in suggestions:
-            keyboard.append([InlineKeyboardButton(label, callback_data=callback)])
+        if categories:
+            # Add category buttons (2 per row)
+            for i in range(0, len(categories), 2):
+                row = []
+                for cat in categories[i:i+2]:
+                    display_name = cat if len(cat) <= 20 else cat[:18] + "..."
+                    row.append(InlineKeyboardButton(display_name, callback_data=f"topiccat_{cat}"))
+                keyboard.append(row)
+            
+            keyboard.append([InlineKeyboardButton("🎲 Surprise me (8 random topics)", callback_data="topiccat_random")])
         keyboard.append([InlineKeyboardButton("✏️ Type my own topic...", callback_data="topic_custom")])
         
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1587,7 +1902,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         params_summary = f"📚 Subject: {subject}\n🧒🏽 Ages: {session['params'].get('ages', '?')}\n📍 Location: {session['params'].get('country', '?')}"
         
         await query.edit_message_text(
-            f"━━━━ *Same Settings* ━━━━\n{params_summary}\n━━━━━━━━━━━━━━━━━━\n\n📝 *Pick a different topic:*",
+            f"━━━━ *Same Settings* ━━━━\n{params_summary}\n━━━━━━━━━━━━━━━━━━\n\n📂 *Pick a different topic:*",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
