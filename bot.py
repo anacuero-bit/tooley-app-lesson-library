@@ -2,11 +2,18 @@
 Tooley - Lesson Plan Generator Bot
 Telegram bot that generates customized lesson plans for teachers worldwide.
 
-Version: 2.3.0
+Version: 2.3.1
 Last Updated: 2026-01-29
 
 CHANGELOG:
 ---------
+v2.3.1 (2026-01-29)
+  - FIXED: Empty sections in generated lessons (Objectives, Differentiation, etc.)
+  - FIXED: Redundant lesson title repeating specs box info  
+  - FIXED: Numbered lists starting at 2 instead of 1
+  - Stricter prompt templates with explicit section structure
+  - Added "no empty sections" enforcement to system prompt
+
 v2.3.0 (2026-01-29)
   - PDF REDESIGN: Navy primary, amber accents only, proper logo styling
   - TOPIC EXPANSION: 25+ topics per subject, 8 randomized shown each time
@@ -50,7 +57,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.3.0"
+VERSION = "2.3.1"
 
 import os
 import logging
@@ -403,8 +410,20 @@ When a country/region is specified, use culturally relevant examples:
 - Nigeria: naira, local foods, local references
 - Universal: use generic examples that work anywhere
 
-OUTPUT STRUCTURE:
-Generate lesson plans with clear sections. Be concise but complete. Focus on activities that engage students actively.
+CRITICAL OUTPUT RULES:
+1. NEVER output empty sections - if you write a header like "Learning Objectives:" you MUST fill it with actual content
+2. NEVER output incomplete bullet points or numbered lists - every item must be complete
+3. NEVER repeat information from the specs (subject, topic, ages) in the lesson body - that's already shown separately
+4. Start numbered lists at 1, not 2
+5. Every section header MUST have substantive content below it
+6. If a section would be empty, don't include that section at all
+
+FORMAT RULES:
+- Use ## for main section headers (e.g., ## Introduction)
+- Use bullet points (-) for lists
+- Use numbered lists (1. 2. 3.) for sequential steps
+- Keep paragraphs short (2-3 sentences max)
+- Include specific dialogue: "Ask students: [actual question]"
 
 TONE:
 Warm, practical, encouraging. You're a helpful colleague, not a textbook. Use "you" and "your students" naturally.
@@ -414,7 +433,8 @@ IMPORTANT:
 - Always include engaging activities that get students participating
 - Time estimates must be realistic
 - Include what to say/ask, not just what to do
-- Add 1-2 "teacher tips" for common challenges"""
+- Add 1-2 "teacher tips" for common challenges
+- DO NOT start with a title or repeat the topic name - jump straight into the lesson content"""
 
 # ============================================================================
 # PROMPT TEMPLATES
@@ -470,32 +490,93 @@ def build_lesson_prompt(params: dict) -> str:
     depth = params.get('depth', 'standard')
     if depth == 'quick':
         prompt_parts.append("""
-OUTPUT FORMAT - QUICK PLAN:
-Keep it brief (~200 words). Include:
-- Learning objective (1 sentence)
-- 3-4 key points (bullets)
-- 1 main activity (with what to say)
-- 1 check-for-understanding question
-- 1 teacher tip""")
+OUTPUT FORMAT - QUICK PLAN (~200 words):
+
+## Learning Objective
+[1 clear sentence: "Students will be able to..."]
+
+## Key Points
+- [Point 1 - complete sentence]
+- [Point 2 - complete sentence]
+- [Point 3 - complete sentence]
+
+## Main Activity (X minutes)
+[Describe the activity. Include what to say: "Ask students..."]
+
+## Quick Check
+[Write 1 specific question to ask at the end]
+
+## Teacher Tip
+[1 practical tip]
+
+REMEMBER: Every bullet point must be complete. No empty sections.""")
     elif depth == 'standard':
         prompt_parts.append("""
 OUTPUT FORMAT - STANDARD LESSON PLAN:
-Complete but concise (~500 words). Include:
-- Learning objective
-- Materials needed (keep minimal)
-- Opening hook (2-3 min) - a question or quick activity to engage
-- Main lesson (step-by-step with timing)
-- Practice activity (hands-on, minimal materials)
-- Closing check (2-3 quick questions)
-- Teacher tips (common mistakes, what to watch for)""")
+Complete and concise (~500 words). Structure EXACTLY like this:
+
+## Learning Objective
+[Write 1-2 specific, measurable objectives - what students will be able to DO]
+
+## Materials Needed
+[List specific items, or write "None required" if no materials]
+
+## Opening Hook (3 minutes)
+[Write the specific question or activity to grab attention. Include exact words to say.]
+
+## Main Lesson (X minutes)
+[Step-by-step instructions with timing. Include what to SAY and what to DO.]
+
+## Practice Activity (X minutes)
+[Detailed hands-on activity. Explain exactly how it works.]
+
+## Closing (3 minutes)
+[2-3 specific questions to check understanding. Write the actual questions.]
+
+## Teacher Tips
+[2 practical tips for common challenges]
+
+REMEMBER: Every section MUST have real content. No empty sections. No placeholders.""")
     elif depth == 'full':
         prompt_parts.append("""
-OUTPUT FORMAT - FULL LESSON KIT:
-Comprehensive (~800 words). Include everything in Standard, PLUS:
-- Differentiation: How to help struggling students / challenge advanced ones
-- Assessment: 3-5 simple quiz questions with answers
-- Extension: Optional homework or follow-up activity
-- Connection: How this links to previous/next lessons""")
+OUTPUT FORMAT - FULL LESSON KIT (~800 words):
+
+## Learning Objectives
+- [Objective 1 - specific and measurable]
+- [Objective 2 - specific and measurable]
+
+## Materials Needed
+[List all materials, or "None required"]
+
+## Opening Hook (3 minutes)
+[Specific engaging question or activity with exact words to say]
+
+## Main Lesson (X minutes)
+[Detailed step-by-step with timing for each step. Include dialogue.]
+
+## Practice Activity (X minutes)
+[Complete activity description with clear instructions]
+
+## Closing (3 minutes)
+[Specific wrap-up questions - write the actual questions]
+
+## Differentiation
+**For students who need support:** [Specific strategies - at least 2 sentences]
+**For advanced students:** [Specific extension - at least 2 sentences]
+
+## Assessment Questions
+1. [Question with answer in parentheses]
+2. [Question with answer in parentheses]
+3. [Question with answer in parentheses]
+
+## Extension Activity
+[Optional homework or follow-up - complete description]
+
+## Teacher Tips
+- [Tip 1 - complete thought]
+- [Tip 2 - complete thought]
+
+CRITICAL: Every single section must have substantive content. If you write a header, you MUST fill it in completely. No empty sections allowed.""")
     
     # Special requests
     if params.get('special_requests'):
