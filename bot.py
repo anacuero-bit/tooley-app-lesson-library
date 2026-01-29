@@ -2,11 +2,25 @@
 Tooley - Lesson Plan Generator Bot
 Telegram bot that generates customized lesson plans for teachers worldwide.
 
-Version: 2.4.0
+Version: 2.6.0
 Last Updated: 2026-01-29
 
 CHANGELOG:
 ---------
+v2.6.0 (2026-01-29)
+  - FIXED: PDF content truncation - improved markdown parsing
+  - FIXED: Inline **bold** text now renders correctly in PDF
+  - FIXED: All content now renders (bullets, steps, questions, tips)
+  - IMPROVED: PDF text stripping and line-by-line rendering
+  - IMPROVED: Logging for PDF generation debugging
+
+v2.5.0 (2026-01-29)
+  - NEW: Website auto-push - shared lessons appear on tooley.app carousel automatically
+  - NEW: GITHUB_WEBSITE_REPO env var for website integration
+  - Added push_lesson_to_website() function
+  - Netlify auto-deploys when lessons.json is updated
+  - Teacher sees "📍 Your lesson is now live on tooley.app!" confirmation
+
 v2.4.0 (2026-01-29)
   - NEW: HTML format option (styled, reliable, print-friendly)
   - NEW: Format choice prompt (PDF or HTML) after generation
@@ -65,7 +79,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.4.0"
+VERSION = "2.5.0"
 
 import os
 import logging
@@ -749,6 +763,8 @@ class LessonPDF(FPDF):
         - Section headers: Slate (#334155) - secondary
         - Body text: Navy (#0f172a) - readable
         - Accent underlines: Amber (#d97706) - subtle highlights
+        
+        v2.6.0: Improved parsing to handle inline markdown and prevent truncation.
         """
         
         # Add specs box first
@@ -758,22 +774,29 @@ class LessonPDF(FPDF):
         self.set_font('Helvetica', '', 10)
         self.set_text_color(15, 23, 42)  # Navy #0f172a
         
-        in_section = False
+        lines = content.split('\n')
+        logger.info(f"PDF: Processing {len(lines)} lines of content")
         
-        for line in content.split('\n'):
+        for i, line in enumerate(lines):
             line = line.strip()
             if not line:
                 self.ln(4)
                 continue
             
-            safe_line = self._break_long_words(self._safe_text(line))
+            # Strip inline markdown for clean text rendering
+            # Handle **bold text** anywhere in the line
+            clean_line = line
+            while '**' in clean_line:
+                clean_line = clean_line.replace('**', '', 1)  # Remove one at a time
+            
+            safe_line = self._break_long_words(self._safe_text(clean_line))
             
             try:
                 # Main headers (## or lines starting with #) - NAVY with amber underline
                 if line.startswith('## ') or line.startswith('# '):
                     self.ln(6)
                     self.set_font('Helvetica', 'B', 12)
-                    self.set_text_color(15, 23, 42)  # Navy #0f172a (not amber!)
+                    self.set_text_color(15, 23, 42)  # Navy #0f172a
                     header_text = safe_line.lstrip('#').strip()
                     self.multi_cell(0, 7, header_text)
                     # Small amber accent line under header
@@ -783,17 +806,21 @@ class LessonPDF(FPDF):
                     self.set_font('Helvetica', '', 10)
                     self.set_text_color(15, 23, 42)  # Navy
                     self.ln(4)
-                    in_section = True
                 
-                # Bold lines (**text**) - Slate
-                elif line.startswith('**') and line.endswith('**'):
+                # Bold lines starting AND ending with ** - treat as sub-headers
+                elif line.startswith('**') and line.endswith('**') and line.count('**') == 2:
                     self.ln(3)
                     self.set_font('Helvetica', 'B', 10)
                     self.set_text_color(51, 65, 85)  # Slate
-                    clean_text = safe_line.strip('*').strip()
+                    clean_text = safe_line.strip()
                     self.multi_cell(0, 6, clean_text)
                     self.set_font('Helvetica', '', 10)
                     self.set_text_color(15, 23, 42)  # Navy
+                
+                # Lines with inline **bold** (not starting/ending) - render as normal text
+                elif '**' in line:
+                    # Inline bold - just render the stripped version as regular text
+                    self.multi_cell(0, 5, safe_line)
                 
                 # Section headers (lines ending with :) - Slate
                 elif line.endswith(':') and len(line) < 60 and not line.startswith('-'):
@@ -806,10 +833,14 @@ class LessonPDF(FPDF):
                 
                 # Bullet points
                 elif line.startswith('- ') or line.startswith('* ') or line.startswith('• '):
-                    bullet_text = '    ' + chr(149) + ' ' + self._break_long_words(self._safe_text(line[2:]))
+                    bullet_content = line[2:].strip()
+                    # Also strip inline markdown from bullets
+                    while '**' in bullet_content:
+                        bullet_content = bullet_content.replace('**', '', 1)
+                    bullet_text = '    ' + chr(149) + ' ' + self._break_long_words(self._safe_text(bullet_content))
                     self.multi_cell(0, 5, bullet_text)
                 
-                # Numbered items
+                # Numbered items (1. or 1) or 1:)
                 elif len(line) > 2 and line[0].isdigit() and line[1] in '.):':
                     self.multi_cell(0, 5, '  ' + safe_line)
                 
@@ -818,8 +849,16 @@ class LessonPDF(FPDF):
                     self.multi_cell(0, 5, safe_line)
                     
             except Exception as e:
-                logger.warning(f"PDF line rendering failed: {e}")
+                logger.warning(f"PDF line {i} rendering failed: {e} - Line: {line[:50]}")
+                # Try to render as plain text fallback
+                try:
+                    fallback = line.encode('ascii', 'replace').decode('ascii')[:80]
+                    self.multi_cell(0, 5, fallback)
+                except:
+                    pass
                 continue
+        
+        logger.info("PDF: Content rendering complete")
     
     def _safe_text(self, text: str) -> str:
         """Convert text to safe ASCII for PDF."""
@@ -846,6 +885,7 @@ class LessonPDF(FPDF):
             '₱': 'PHP ',
             '₹': 'Rs ',
             '₦': 'NGN ',
+            'R': 'R',  # Keep Rand symbol as-is (already ASCII)
         }
         for old, new in replacements.items():
             text = text.replace(old, new)
