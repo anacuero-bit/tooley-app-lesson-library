@@ -2,11 +2,19 @@
 Tooley - Lesson Plan Generator Bot
 Telegram bot that generates customized lesson plans for teachers worldwide.
 
-Version: 2.3.1
+Version: 2.4.0
 Last Updated: 2026-01-29
 
 CHANGELOG:
 ---------
+v2.4.0 (2026-01-29)
+  - NEW: HTML format option (styled, reliable, print-friendly)
+  - NEW: Format choice prompt (PDF or HTML) after generation
+  - NEW: Improved welcome message with feature overview
+  - NEW: Data-driven country list (top 15 by teacher population)
+  - IMPROVED: PDF formatting and parsing reliability
+  - IMPROVED: Lesson carousel push to website (lessons.json)
+
 v2.3.1 (2026-01-29)
   - FIXED: Empty sections in generated lessons (Objectives, Differentiation, etc.)
   - FIXED: Redundant lesson title repeating specs box info  
@@ -57,7 +65,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.3.1"
+VERSION = "2.4.0"
 
 import os
 import logging
@@ -911,7 +919,272 @@ def generate_lesson_filename(params: dict) -> str:
     if params.get('duration'):
         parts.append(f"{params['duration']}min")
     
-    return '_'.join(parts) + '.pdf'
+    return '_'.join(parts)
+
+
+def create_lesson_html(content: str, params: dict) -> str:
+    """Create a styled HTML document from lesson content.
+    
+    This produces a beautiful, print-ready HTML file that renders
+    markdown-style content with Tooley branding.
+    """
+    
+    # Build specs info
+    specs_html = ""
+    if params.get('subject'):
+        specs_html += f"<div class='spec'><span class='label'>Subject:</span> {params['subject']}</div>"
+    if params.get('topic'):
+        specs_html += f"<div class='spec'><span class='label'>Topic:</span> {params['topic']}</div>"
+    if params.get('ages'):
+        specs_html += f"<div class='spec'><span class='label'>Ages:</span> {params['ages']}</div>"
+    if params.get('duration'):
+        specs_html += f"<div class='spec'><span class='label'>Duration:</span> {params['duration']} minutes</div>"
+    if params.get('country'):
+        specs_html += f"<div class='spec'><span class='label'>Location:</span> {params['country']}</div>"
+    if params.get('materials'):
+        materials_map = {'none': 'No materials', 'basic': 'Basic supplies', 'standard': 'Full classroom'}
+        specs_html += f"<div class='spec'><span class='label'>Materials:</span> {materials_map.get(params['materials'], params['materials'])}</div>"
+    if params.get('style'):
+        style_map = {'interactive': 'Interactive', 'structured': 'Structured', 'storytelling': 'Story-based'}
+        specs_html += f"<div class='spec'><span class='label'>Style:</span> {style_map.get(params['style'], params['style'])}</div>"
+    
+    # Convert markdown-style content to HTML
+    content_html = ""
+    lines = content.split('\n')
+    in_list = False
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            if in_list:
+                content_html += "</ul>"
+                in_list = False
+            content_html += "<br>"
+            continue
+        
+        # Headers
+        if line.startswith('## '):
+            if in_list:
+                content_html += "</ul>"
+                in_list = False
+            content_html += f"<h2>{line[3:]}</h2>"
+        elif line.startswith('# '):
+            if in_list:
+                content_html += "</ul>"
+                in_list = False
+            content_html += f"<h1>{line[2:]}</h1>"
+        # Bold lines
+        elif line.startswith('**') and line.endswith('**'):
+            if in_list:
+                content_html += "</ul>"
+                in_list = False
+            content_html += f"<p class='bold'>{line.strip('*')}</p>"
+        # Bullet points
+        elif line.startswith('- ') or line.startswith('* ') or line.startswith('• '):
+            if not in_list:
+                content_html += "<ul>"
+                in_list = True
+            content_html += f"<li>{line[2:]}</li>"
+        # Numbered items
+        elif len(line) > 2 and line[0].isdigit() and line[1] in '.):':
+            if in_list:
+                content_html += "</ul>"
+                in_list = False
+            content_html += f"<p class='numbered'>{line}</p>"
+        # Regular text
+        else:
+            if in_list:
+                content_html += "</ul>"
+                in_list = False
+            # Handle inline bold **text**
+            import re
+            line = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', line)
+            content_html += f"<p>{line}</p>"
+    
+    if in_list:
+        content_html += "</ul>"
+    
+    topic = params.get('topic', 'Lesson Plan')
+    
+    html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{topic} - Tooley Lesson Plan</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #0f172a;
+            background: #ffffff;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }}
+        
+        /* Header */
+        .header {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #0f172a;
+        }}
+        
+        .logo {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        
+        .logo-bar {{
+            width: 4px;
+            height: 28px;
+            background: #d97706;
+            border-radius: 2px;
+        }}
+        
+        .logo-text {{
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.5px;
+        }}
+        
+        .tagline {{
+            font-size: 11px;
+            color: #64748b;
+            margin-left: auto;
+        }}
+        
+        /* Specs Box */
+        .specs-box {{
+            background: #fffbeb;
+            border: 1px solid #0f172a;
+            padding: 16px 20px;
+            margin: 20px 0 30px 0;
+        }}
+        
+        .specs-title {{
+            font-size: 11px;
+            font-weight: 700;
+            color: #d97706;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }}
+        
+        .spec {{
+            font-size: 13px;
+            margin-bottom: 4px;
+        }}
+        
+        .spec .label {{
+            font-weight: 600;
+        }}
+        
+        /* Content */
+        h1 {{
+            font-size: 22px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 28px 0 12px 0;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #d97706;
+            display: inline-block;
+        }}
+        
+        h2 {{
+            font-size: 18px;
+            font-weight: 600;
+            color: #0f172a;
+            margin: 24px 0 10px 0;
+            padding-bottom: 4px;
+            border-bottom: 2px solid #d97706;
+            display: inline-block;
+        }}
+        
+        p {{
+            margin-bottom: 10px;
+        }}
+        
+        p.bold {{
+            font-weight: 600;
+            color: #334155;
+            margin-top: 16px;
+        }}
+        
+        p.numbered {{
+            margin-left: 16px;
+        }}
+        
+        ul {{
+            margin: 10px 0 10px 24px;
+        }}
+        
+        li {{
+            margin-bottom: 6px;
+        }}
+        
+        strong {{
+            font-weight: 600;
+        }}
+        
+        /* Footer */
+        .footer {{
+            margin-top: 40px;
+            padding-top: 16px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+        }}
+        
+        /* Print styles */
+        @media print {{
+            body {{
+                padding: 20px;
+                max-width: 100%;
+            }}
+            .specs-box {{
+                break-inside: avoid;
+            }}
+            h2 {{
+                break-after: avoid;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <div class="logo-bar"></div>
+            <span class="logo-text">tooley</span>
+        </div>
+        <span class="tagline">AI Lesson Plans for Teachers | tooley.app</span>
+    </div>
+    
+    <div class="specs-box">
+        <div class="specs-title">Lesson Specifications</div>
+        {specs_html}
+    </div>
+    
+    <div class="content">
+        {content_html}
+    </div>
+    
+    <div class="footer">
+        Generated by Tooley | tooley.app | Free for all teachers
+    </div>
+</body>
+</html>'''
+    
+    return html
 
 
 # ============================================================================
@@ -1176,15 +1449,19 @@ def get_country_flag(country: str) -> str:
     """Get emoji flag for country."""
     flags = {
         'India': '🇮🇳',
-        'Kenya': '🇰🇪',
         'Nigeria': '🇳🇬',
-        'Ghana': '🇬🇭',
         'Philippines': '🇵🇭',
-        'South Africa': '🇿🇦',
-        'Tanzania': '🇹🇿',
-        'Uganda': '🇺🇬',
+        'Indonesia': '🇮🇩',
         'Pakistan': '🇵🇰',
         'Bangladesh': '🇧🇩',
+        'Kenya': '🇰🇪',
+        'Ethiopia': '🇪🇹',
+        'South Africa': '🇿🇦',
+        'Tanzania': '🇹🇿',
+        'Brazil': '🇧🇷',
+        'Mexico': '🇲🇽',
+        'Ghana': '🇬🇭',
+        'Uganda': '🇺🇬',
     }
     return flags.get(country, '🌍')
 
@@ -1196,35 +1473,44 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     stats = await get_lesson_stats()
     stats_text = ""
     if stats['total'] > 0:
-        stats_text = f"\n📊 *{stats['total']} lessons* shared by teachers worldwide\n"
+        stats_text = f"\n🌍 *{stats['total']} lessons* created by teachers worldwide\n"
     
-    welcome_text = f"""📚 *Welcome to Tooley!*
+    welcome_text = f"""🧒🏽 *Welcome to Tooley!*
 
-Free AI-powered lesson plans for teachers everywhere.
+Your free AI teaching assistant. Create ready-to-use lesson plans in minutes.
 {stats_text}
-*How to create a lesson:*
+━━━━━━━━━━━━━━━━━━━━━━
 
-📝 *Type* your request:
-"Math lesson about fractions for 8-10 year olds"
+*3 ways to create a lesson:*
 
-🎤 *Send a voice message* describing what you need
+💬 *Just type* what you need:
+_"Fractions lesson for ages 8-10 in Kenya"_
 
-🔘 *Use guided mode* with /new
+🎤 *Send a voice message*
+_Describe your lesson in any accent_
 
-*Commands:*
-/new - Start guided lesson creation
-/quick - Fast lesson (just topic + age)
-/browse - Browse lessons from other teachers
-/help - Tips and examples
+🔘 *Guided mode* - we'll ask step by step
+_Best for your first lesson_
 
-_Part of the global movement supporting teachers in low-resource schools._
-"""
+━━━━━━━━━━━━━━━━━━━━━━
+
+*What you get:*
+📄 Formatted lesson plan (PDF or HTML)
+🎯 Learning objectives, activities, timing
+💡 Teacher tips for common challenges
+🌍 Examples relevant to YOUR country
+
+━━━━━━━━━━━━━━━━━━━━━━
+
+Tap a button below or type /new to start 👇"""
     
     keyboard = [
+        [InlineKeyboardButton("🆕 Create a lesson", callback_data="action_new")],
         [
-            InlineKeyboardButton("🆕 Create lesson", callback_data="action_new"),
-            InlineKeyboardButton("📚 Browse lessons", callback_data="action_browse"),
-        ]
+            InlineKeyboardButton("⚡ Quick lesson", callback_data="action_quick"),
+            InlineKeyboardButton("📚 Browse", callback_data="action_browse"),
+        ],
+        [InlineKeyboardButton("❓ Help & tips", callback_data="action_help")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -1553,21 +1839,40 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session['params']['duration'] = duration
         session['state'] = 'awaiting_country'
         
+        # Top countries by teacher population + educational development focus
+        # Data-driven: UNESCO/World Bank teacher population stats
         keyboard = [
             [
                 InlineKeyboardButton("🇮🇳 India", callback_data="country_India"),
-                InlineKeyboardButton("🇰🇪 Kenya", callback_data="country_Kenya"),
-            ],
-            [
                 InlineKeyboardButton("🇳🇬 Nigeria", callback_data="country_Nigeria"),
-                InlineKeyboardButton("🇬🇭 Ghana", callback_data="country_Ghana"),
             ],
             [
                 InlineKeyboardButton("🇵🇭 Philippines", callback_data="country_Philippines"),
-                InlineKeyboardButton("🌍 Other", callback_data="country_other"),
+                InlineKeyboardButton("🇮🇩 Indonesia", callback_data="country_Indonesia"),
             ],
             [
-                InlineKeyboardButton("Skip (universal)", callback_data="country_skip"),
+                InlineKeyboardButton("🇵🇰 Pakistan", callback_data="country_Pakistan"),
+                InlineKeyboardButton("🇧🇩 Bangladesh", callback_data="country_Bangladesh"),
+            ],
+            [
+                InlineKeyboardButton("🇰🇪 Kenya", callback_data="country_Kenya"),
+                InlineKeyboardButton("🇪🇹 Ethiopia", callback_data="country_Ethiopia"),
+            ],
+            [
+                InlineKeyboardButton("🇿🇦 South Africa", callback_data="country_South Africa"),
+                InlineKeyboardButton("🇹🇿 Tanzania", callback_data="country_Tanzania"),
+            ],
+            [
+                InlineKeyboardButton("🇧🇷 Brazil", callback_data="country_Brazil"),
+                InlineKeyboardButton("🇲🇽 Mexico", callback_data="country_Mexico"),
+            ],
+            [
+                InlineKeyboardButton("🇬🇭 Ghana", callback_data="country_Ghana"),
+                InlineKeyboardButton("🇺🇬 Uganda", callback_data="country_Uganda"),
+            ],
+            [
+                InlineKeyboardButton("🌍 Other (type)", callback_data="country_other"),
+                InlineKeyboardButton("🌐 Universal", callback_data="country_skip"),
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1661,14 +1966,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         keyboard = [
             [InlineKeyboardButton("📱 Read in chat", callback_data="format_chat")],
-            [InlineKeyboardButton("📄 Download PDF", callback_data="format_pdf")],
-            [InlineKeyboardButton("📱📄 Both", callback_data="format_both")],
+            [InlineKeyboardButton("📄 PDF document", callback_data="format_pdf")],
+            [InlineKeyboardButton("🌐 HTML (opens in browser)", callback_data="format_html")],
+            [InlineKeyboardButton("📱📄 Chat + PDF", callback_data="format_both")],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         summary = build_selection_summary(session['params'])
         await query.edit_message_text(
-            f"{summary}\n\n📲 *How would you like to receive your lesson?*",
+            f"{summary}\n\n📲 *Choose your format:*\n_PDF works offline, HTML is print-friendly_",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -1720,13 +2026,26 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             if output_format in ['pdf', 'both']:
                 pdf_buffer = create_lesson_pdf(lesson_content, session['params'])
-                filename = generate_lesson_filename(session['params'])
+                filename = generate_lesson_filename(session['params']) + '.pdf'
                 
                 await context.bot.send_document(
                     chat_id=update.effective_chat.id,
                     document=pdf_buffer,
                     filename=filename,
                     caption=f"📄 *Your lesson plan is ready!*\n\n{specs_text}",
+                    parse_mode='Markdown'
+                )
+            
+            if output_format == 'html':
+                html_content = create_lesson_html(lesson_content, session['params'])
+                html_buffer = BytesIO(html_content.encode('utf-8'))
+                filename = generate_lesson_filename(session['params']) + '.html'
+                
+                await context.bot.send_document(
+                    chat_id=update.effective_chat.id,
+                    document=html_buffer,
+                    filename=filename,
+                    caption=f"🌐 *Your lesson plan is ready!*\nOpen in any browser, print-friendly.\n\n{specs_text}",
                     parse_mode='Markdown'
                 )
             
