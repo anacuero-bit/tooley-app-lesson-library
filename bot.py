@@ -63,7 +63,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.10.5"
+VERSION = "2.10.6"
 
 import os
 import logging
@@ -925,13 +925,13 @@ async def lesson_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session['state'] = 'awaiting_subject'
     
     keyboard = [
-        [InlineKeyboardButton("📐 Mathematics", callback_data="subject_Mathematics"),
-         InlineKeyboardButton("🔬 Science", callback_data="subject_Science")],
-        [InlineKeyboardButton("📖 Reading", callback_data="subject_Reading"),
-         InlineKeyboardButton("✏️ Language", callback_data="subject_Language")],
-        [InlineKeyboardButton("🌍 Social Studies", callback_data="subject_Social Studies"),
-         InlineKeyboardButton("🎨 Art", callback_data="subject_Art")],
-        [InlineKeyboardButton("📝 Other...", callback_data="subject_other")],
+        [InlineKeyboardButton("📐 Mathematics", callback_data="subject_Mathematics")],
+        [InlineKeyboardButton("🔬 Science", callback_data="subject_Science")],
+        [InlineKeyboardButton("📖 Reading", callback_data="subject_Reading")],
+        [InlineKeyboardButton("✏️ Language Arts", callback_data="subject_Language")],
+        [InlineKeyboardButton("🌍 Social Studies", callback_data="subject_Social Studies")],
+        [InlineKeyboardButton("🎨 Art & Music", callback_data="subject_Art")],
+        [InlineKeyboardButton("📝 Other Topic...", callback_data="subject_other")],
     ]
     
     await update.message.reply_text(
@@ -959,12 +959,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "action_quick":
         logger.info(f">>> action_quick")
         keyboard = [
-            [InlineKeyboardButton("📐 Math", callback_data="quick_Mathematics"),
-             InlineKeyboardButton("🔬 Science", callback_data="quick_Science")],
-            [InlineKeyboardButton("📖 Reading", callback_data="quick_Reading"),
-             InlineKeyboardButton("✏️ Language", callback_data="quick_Language")],
-            [InlineKeyboardButton("🌍 Social Studies", callback_data="quick_Social Studies"),
-             InlineKeyboardButton("🎨 Art", callback_data="quick_Art")],
+            [InlineKeyboardButton("📐 Mathematics", callback_data="quick_Mathematics")],
+            [InlineKeyboardButton("🔬 Science", callback_data="quick_Science")],
+            [InlineKeyboardButton("📖 Reading", callback_data="quick_Reading")],
+            [InlineKeyboardButton("✏️ Language Arts", callback_data="quick_Language")],
+            [InlineKeyboardButton("🌍 Social Studies", callback_data="quick_Social Studies")],
+            [InlineKeyboardButton("🎨 Art & Music", callback_data="quick_Art")],
         ]
         await query.edit_message_text(
             "⚡ *Quick Lesson*\n\nPick a subject and I'll generate instantly!\n_Smart defaults: Ages 9-11, 30 min, basic materials_",
@@ -1005,13 +1005,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session['state'] = 'awaiting_subject'
         
         keyboard = [
-            [InlineKeyboardButton("📐 Mathematics", callback_data="subject_Mathematics"),
-             InlineKeyboardButton("🔬 Science", callback_data="subject_Science")],
-            [InlineKeyboardButton("📖 Reading", callback_data="subject_Reading"),
-             InlineKeyboardButton("✏️ Language", callback_data="subject_Language")],
-            [InlineKeyboardButton("🌍 Social Studies", callback_data="subject_Social Studies"),
-             InlineKeyboardButton("🎨 Art", callback_data="subject_Art")],
-            [InlineKeyboardButton("📝 Other...", callback_data="subject_other")],
+            [InlineKeyboardButton("📐 Mathematics", callback_data="subject_Mathematics")],
+            [InlineKeyboardButton("🔬 Science", callback_data="subject_Science")],
+            [InlineKeyboardButton("📖 Reading", callback_data="subject_Reading")],
+            [InlineKeyboardButton("✏️ Language Arts", callback_data="subject_Language")],
+            [InlineKeyboardButton("🌍 Social Studies", callback_data="subject_Social Studies")],
+            [InlineKeyboardButton("🎨 Art & Music", callback_data="subject_Art")],
+            [InlineKeyboardButton("📝 Other Topic...", callback_data="subject_other")],
         ]
         await query.edit_message_text(
             "📚 *Custom Lesson*\n\nWhat subject?",
