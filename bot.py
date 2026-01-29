@@ -1,6 +1,31 @@
 """
 Tooley - Lesson Plan Generator Bot
-Telegram bot that generates customized lesson plans for teachers in low-resource settings.
+Telegram bot that generates customized lesson plans for teachers worldwide.
+
+Version: 2.1.0
+Last Updated: 2026-01-29
+
+CHANGELOG:
+---------
+v2.1.0 (2026-01-29)
+  - Added format choice (📱 Read in chat vs 📄 Download PDF) before generation
+  - Improved PDF branding and layout
+  - Structured file naming: subject_topic_ages_duration.pdf
+  - Fixed lesson specs disappearing on PDF delivery
+  - Fixed empty PDF bug
+  - Visual selection summary shows at every step
+
+v2.0.0 (2026-01-28)
+  - Fixed PDF "Not enough horizontal space" crash
+  - Removed poverty-implying language from prompts
+  - Updated materials options (No materials / Basic / Full classroom)
+  - Added visual summary of accumulated selections
+
+v1.0.0 (2026-01-27)
+  - Initial release
+  - Basic lesson generation with subject/topic/age/duration
+  - PDF and text output
+  - GitHub lesson sharing
 
 Stack:
 - python-telegram-bot for Telegram interface
@@ -9,6 +34,8 @@ Stack:
 - fpdf2 for PDF generation
 - GitHub API for lesson repository storage
 """
+
+VERSION = "2.1.0"
 
 import os
 import logging
@@ -213,109 +240,165 @@ def generate_lesson(params: dict) -> str:
 # ============================================================================
 
 class LessonPDF(FPDF):
-    """Custom PDF class for lesson plans."""
+    """Custom PDF class for lesson plans with Tooley branding."""
     
-    def __init__(self):
+    def __init__(self, params: dict = None):
         super().__init__()
+        self.params = params or {}
         self.add_page()
-        # Use built-in fonts that support basic characters
-        self.set_auto_page_break(auto=True, margin=15)
+        self.set_auto_page_break(auto=True, margin=20)
     
     def header(self):
-        self.set_font('Helvetica', 'B', 10)
-        self.set_text_color(30, 123, 70)  # Green
-        self.cell(0, 10, 'Tooley - Lesson Plan', align='C')
-        self.ln(15)
+        # Tooley branded header
+        self.set_font('Helvetica', 'B', 16)
+        self.set_text_color(30, 123, 70)  # Tooley green
+        self.cell(0, 8, 'TOOLEY', align='L')
+        self.set_font('Helvetica', '', 9)
+        self.set_text_color(128, 128, 128)
+        self.cell(0, 8, 'Lesson Plans for Teachers', align='R')
+        self.ln(12)
+        # Divider line
+        self.set_draw_color(30, 123, 70)
+        self.set_line_width(0.5)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(8)
     
     def footer(self):
-        self.set_y(-15)
-        self.set_font('Helvetica', 'I', 8)
+        self.set_y(-20)
+        # Divider line
+        self.set_draw_color(200, 200, 200)
+        self.set_line_width(0.3)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(5)
+        self.set_font('Helvetica', '', 8)
         self.set_text_color(128, 128, 128)
-        self.cell(0, 10, 'tooley.app | Free lesson plans for teachers everywhere', align='C')
+        self.cell(0, 5, f'Page {self.page_no()}', align='C')
+        self.ln(4)
+        self.cell(0, 5, 'tooley.app | Free lesson plans for teachers everywhere', align='C')
     
-    def _break_long_words(self, text: str, max_chars: int = 60) -> str:
+    def _break_long_words(self, text: str, max_chars: int = 55) -> str:
         """Break very long words to prevent PDF rendering issues."""
         words = text.split(' ')
         result = []
         for word in words:
             if len(word) > max_chars:
-                # Break long word into chunks
                 chunks = [word[i:i+max_chars] for i in range(0, len(word), max_chars)]
                 result.append(' '.join(chunks))
             else:
                 result.append(word)
         return ' '.join(result)
     
-    def add_lesson_content(self, content: str, params: dict):
-        """Add the lesson content to PDF."""
+    def add_specs_box(self, params: dict):
+        """Add a branded lesson specs box at the top."""
+        self.set_fill_color(245, 250, 245)  # Light green background
+        self.set_draw_color(30, 123, 70)
         
-        # Title section
-        self.set_font('Helvetica', 'B', 14)
-        self.set_text_color(26, 26, 46)
-        
-        topic = params.get('topic', 'Lesson Plan')
-        subject = params.get('subject', '')
-        title = f"{subject}: {topic}" if subject else topic
-        # Use multi_cell for title to handle long titles
-        safe_title = self._safe_text(title[:80])
-        self.multi_cell(0, 10, safe_title)
-        
-        # Metadata line
-        self.set_font('Helvetica', '', 10)
-        self.set_text_color(100, 100, 100)
-        meta_parts = []
+        # Calculate box height based on content
+        specs = []
+        if params.get('subject'):
+            specs.append(f"Subject: {params['subject']}")
+        if params.get('topic'):
+            specs.append(f"Topic: {params['topic']}")
         if params.get('ages'):
-            meta_parts.append(f"Ages {params['ages']}")
+            specs.append(f"Ages: {params['ages']}")
         if params.get('duration'):
-            meta_parts.append(f"{params['duration']} min")
+            specs.append(f"Duration: {params['duration']} minutes")
         if params.get('country'):
-            meta_parts.append(params['country'])
-        if meta_parts:
-            self.multi_cell(0, 6, " | ".join(meta_parts))
+            specs.append(f"Location: {params['country']}")
+        if params.get('materials'):
+            materials_map = {'none': 'No materials', 'basic': 'Basic supplies', 'standard': 'Full classroom'}
+            specs.append(f"Materials: {materials_map.get(params['materials'], params['materials'])}")
+        if params.get('style'):
+            style_map = {'interactive': 'Interactive', 'structured': 'Structured', 'storytelling': 'Story-based'}
+            specs.append(f"Style: {style_map.get(params['style'], params['style'])}")
         
-        self.ln(5)
+        box_height = 8 + (len(specs) * 6)
+        self.rect(10, self.get_y(), 190, box_height, 'DF')
+        
+        self.set_xy(15, self.get_y() + 4)
+        self.set_font('Helvetica', 'B', 10)
+        self.set_text_color(30, 123, 70)
+        self.cell(0, 5, 'LESSON SPECIFICATIONS')
+        self.ln(6)
+        
+        self.set_font('Helvetica', '', 9)
+        self.set_text_color(60, 60, 60)
+        for spec in specs:
+            self.set_x(15)
+            self.cell(0, 5, self._safe_text(spec))
+            self.ln(5)
+        
+        self.ln(8)
+    
+    def add_lesson_content(self, content: str, params: dict):
+        """Add the lesson content to PDF with improved formatting."""
+        
+        # Add specs box first
+        self.add_specs_box(params)
         
         # Main content
-        self.set_font('Helvetica', '', 11)
-        self.set_text_color(26, 26, 46)
+        self.set_font('Helvetica', '', 10)
+        self.set_text_color(30, 30, 30)
         
-        # Process content line by line for basic formatting
+        in_section = False
+        
         for line in content.split('\n'):
             line = line.strip()
             if not line:
-                self.ln(3)
+                self.ln(4)
                 continue
             
-            # Sanitize and break long words
             safe_line = self._break_long_words(self._safe_text(line))
             
             try:
-                # Detect headers (lines in ALL CAPS or ending with :)
-                if line.isupper() or (line.endswith(':') and len(line) < 50):
-                    self.ln(3)
-                    self.set_font('Helvetica', 'B', 11)
+                # Main headers (## or lines starting with #)
+                if line.startswith('## ') or line.startswith('# '):
+                    self.ln(6)
+                    self.set_font('Helvetica', 'B', 12)
                     self.set_text_color(30, 123, 70)
+                    header_text = safe_line.lstrip('#').strip()
+                    self.multi_cell(0, 7, header_text)
+                    self.set_font('Helvetica', '', 10)
+                    self.set_text_color(30, 30, 30)
+                    self.ln(2)
+                    in_section = True
+                
+                # Bold lines (**text**)
+                elif line.startswith('**') and line.endswith('**'):
+                    self.ln(3)
+                    self.set_font('Helvetica', 'B', 10)
+                    clean_text = safe_line.strip('*').strip()
+                    self.multi_cell(0, 6, clean_text)
+                    self.set_font('Helvetica', '', 10)
+                
+                # Section headers (lines ending with :)
+                elif line.endswith(':') and len(line) < 60 and not line.startswith('-'):
+                    self.ln(4)
+                    self.set_font('Helvetica', 'B', 10)
+                    self.set_text_color(60, 60, 60)
                     self.multi_cell(0, 6, safe_line)
-                    self.set_font('Helvetica', '', 11)
-                    self.set_text_color(26, 26, 46)
+                    self.set_font('Helvetica', '', 10)
+                    self.set_text_color(30, 30, 30)
+                
                 # Bullet points
-                elif line.startswith('- ') or line.startswith('• ') or line.startswith('* '):
-                    bullet_text = '  - ' + self._break_long_words(self._safe_text(line[2:]))
-                    self.multi_cell(0, 6, bullet_text)
+                elif line.startswith('- ') or line.startswith('* ') or line.startswith('• '):
+                    bullet_text = '    ' + chr(149) + ' ' + self._break_long_words(self._safe_text(line[2:]))
+                    self.multi_cell(0, 5, bullet_text)
+                
                 # Numbered items
                 elif len(line) > 2 and line[0].isdigit() and line[1] in '.):':
-                    self.multi_cell(0, 6, safe_line)
+                    self.multi_cell(0, 5, '  ' + safe_line)
+                
                 # Regular text
                 else:
-                    self.multi_cell(0, 6, safe_line)
+                    self.multi_cell(0, 5, safe_line)
+                    
             except Exception as e:
-                # If a line fails, just skip it and continue
                 logger.warning(f"PDF line rendering failed: {e}")
                 continue
     
     def _safe_text(self, text: str) -> str:
         """Convert text to safe ASCII for PDF."""
-        # Replace common unicode characters
         replacements = {
             '→': '->',
             '←': '<-',
@@ -330,17 +413,19 @@ class LessonPDF(FPDF):
             '✓': '[x]',
             '✗': '[ ]',
             '★': '*',
-            '📚': '[Book]',
-            '📝': '[Note]',
-            '🎯': '[Target]',
+            '📚': '',
+            '📝': '',
+            '🎯': '',
             '💡': '[Tip]',
-            '⏱': '[Time]',
-            '👥': '[Group]',
+            '⏱': '',
+            '👥': '',
+            '₱': 'PHP ',
+            '₹': 'Rs ',
+            '₦': 'NGN ',
         }
         for old, new in replacements.items():
             text = text.replace(old, new)
         
-        # Remove any remaining non-ASCII
         return text.encode('ascii', 'replace').decode('ascii')
 
 
@@ -348,7 +433,7 @@ def create_lesson_pdf(content: str, params: dict) -> BytesIO:
     """Create a PDF from lesson content."""
     
     try:
-        pdf = LessonPDF()
+        pdf = LessonPDF(params)
         pdf.add_lesson_content(content, params)
         
         # Output to BytesIO
@@ -360,15 +445,56 @@ def create_lesson_pdf(content: str, params: dict) -> BytesIO:
         return pdf_buffer
     except Exception as e:
         logger.error(f"PDF creation failed: {e}")
-        # Return a simple fallback PDF
+        # Return a simple fallback PDF with error info
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font('Helvetica', '', 12)
-        pdf.multi_cell(0, 10, "Lesson plan generated - see text version above.")
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.cell(0, 10, "Tooley - Lesson Plan")
+        pdf.ln(15)
+        pdf.set_font('Helvetica', '', 11)
+        # Add the content as plain text
+        for line in content.split('\n')[:50]:  # First 50 lines
+            safe_line = line.encode('ascii', 'replace').decode('ascii')[:90]
+            pdf.multi_cell(0, 6, safe_line)
         pdf_buffer = BytesIO()
         pdf_buffer.write(pdf.output())
         pdf_buffer.seek(0)
         return pdf_buffer
+
+
+def generate_lesson_filename(params: dict) -> str:
+    """Generate a structured filename for the lesson PDF."""
+    parts = []
+    
+    # Subject (abbreviated)
+    subject = params.get('subject', 'lesson')
+    subject_abbrev = {
+        'Mathematics': 'math',
+        'Language': 'lang',
+        'Science': 'science',
+        'Reading': 'reading',
+        'Social Studies': 'social',
+        'Art': 'art',
+        'Physical Education': 'pe',
+        'Music': 'music',
+    }
+    parts.append(subject_abbrev.get(subject, subject[:6].lower()))
+    
+    # Topic (sanitized)
+    topic = params.get('topic', 'lesson')
+    topic_clean = topic.lower().replace(' ', '-')[:20]
+    topic_clean = ''.join(c for c in topic_clean if c.isalnum() or c == '-')
+    parts.append(topic_clean)
+    
+    # Ages
+    if params.get('ages'):
+        parts.append(f"ages{params['ages'].replace('-', 'to')}")
+    
+    # Duration
+    if params.get('duration'):
+        parts.append(f"{params['duration']}min")
+    
+    return '_'.join(parts) + '.pdf'
 
 
 # ============================================================================
@@ -1091,10 +1217,31 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    # Depth selection - GENERATE!
+    # Depth selection - ask format preference
     if data.startswith("depth_"):
         depth = data.replace("depth_", "")
         session['params']['depth'] = depth
+        session['state'] = 'awaiting_format'
+        
+        keyboard = [
+            [InlineKeyboardButton("📱 Read in chat", callback_data="format_chat")],
+            [InlineKeyboardButton("📄 Download PDF", callback_data="format_pdf")],
+            [InlineKeyboardButton("📱📄 Both", callback_data="format_both")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        summary = build_selection_summary(session['params'])
+        await query.edit_message_text(
+            f"{summary}\n\n📲 *How would you like to receive your lesson?*",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Format selection - NOW GENERATE!
+    if data.startswith("format_"):
+        output_format = data.replace("format_", "")
+        session['params']['output_format'] = output_format
         
         summary = build_selection_summary(session['params'])
         await query.edit_message_text(
@@ -1107,31 +1254,45 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             session['last_lesson'] = lesson_content
             session['state'] = 'lesson_generated'
             
-            # For quick depth, send as message
-            if depth == 'quick':
-                await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text=lesson_content
-                )
-            else:
-                # Send as PDF
+            # Build the summary to include with output
+            specs_text = build_selection_summary(session['params'])
+            
+            # Send based on format choice
+            if output_format in ['chat', 'both']:
+                # Split long messages
+                full_text = f"{specs_text}\n\n{lesson_content}"
+                if len(full_text) < 4000:
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=full_text,
+                        parse_mode='Markdown'
+                    )
+                else:
+                    # Send specs first, then content
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=specs_text,
+                        parse_mode='Markdown'
+                    )
+                    # Split content into chunks
+                    chunks = [lesson_content[i:i+4000] for i in range(0, len(lesson_content), 4000)]
+                    for chunk in chunks:
+                        await context.bot.send_message(
+                            chat_id=update.effective_chat.id,
+                            text=chunk
+                        )
+            
+            if output_format in ['pdf', 'both']:
                 pdf_buffer = create_lesson_pdf(lesson_content, session['params'])
-                topic = session['params'].get('topic', 'lesson')
-                filename = f"{topic.lower().replace(' ', '-')[:30]}.pdf"
+                filename = generate_lesson_filename(session['params'])
                 
                 await context.bot.send_document(
                     chat_id=update.effective_chat.id,
                     document=pdf_buffer,
                     filename=filename,
-                    caption="📄 Your lesson plan is ready!"
+                    caption=f"📄 *Your lesson plan is ready!*\n\n{specs_text}",
+                    parse_mode='Markdown'
                 )
-                
-                # Also send text version
-                if len(lesson_content) < 4000:
-                    await context.bot.send_message(
-                        chat_id=update.effective_chat.id,
-                        text=lesson_content
-                    )
             
             # Follow-up options - ask about sharing
             keyboard = [
