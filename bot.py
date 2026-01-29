@@ -101,6 +101,7 @@ GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 # GitHub Repository Storage
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "tooley/lesson-library")
+GITHUB_WEBSITE_REPO = os.environ.get("GITHUB_WEBSITE_REPO")  # For website carousel auto-push
 LESSONS_FILE = "lessons.json"
 
 # ============================================================================
@@ -1329,6 +1330,94 @@ async def save_lesson_to_github(lesson: dict) -> bool:
         return False
 
 
+async def push_lesson_to_website(lesson: dict) -> bool:
+    """Push lesson to website repo for carousel display.
+    
+    This updates the website's lessons.json which powers the carousel
+    on the public landing page. Netlify auto-deploys when the file changes.
+    """
+    if not GITHUB_TOKEN or not GITHUB_WEBSITE_REPO:
+        logger.info("Website push skipped (GITHUB_WEBSITE_REPO not configured)")
+        return False
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Get current lessons.json from website repo
+            get_response = await client.get(
+                f"https://api.github.com/repos/{GITHUB_WEBSITE_REPO}/contents/lessons.json",
+                headers={
+                    "Authorization": f"token {GITHUB_TOKEN}",
+                    "Accept": "application/vnd.github.v3+json"
+                }
+            )
+            
+            # Load existing or start fresh
+            if get_response.status_code == 200:
+                file_data = get_response.json()
+                sha = file_data["sha"]
+                existing_content = base64.b64decode(file_data["content"]).decode("utf-8")
+                data = json.loads(existing_content)
+                lessons = data.get("lessons", [])
+            else:
+                sha = None
+                lessons = []
+            
+            # Create carousel-friendly record (subset of full data)
+            carousel_lesson = {
+                "id": lesson.get("id", generate_lesson_id()),
+                "subject": lesson.get("subject", "General").upper(),
+                "topic": lesson.get("topic", "Untitled"),
+                "ages": lesson.get("ages", "All ages"),
+                "duration": str(lesson.get("duration", 45)),
+                "country": lesson.get("country", "Global"),
+                "teacher_name": lesson.get("teacher_name", "Anonymous"),
+                "public": True,
+                "created_at": datetime.utcnow().isoformat() + "Z"
+            }
+            
+            # Add to beginning
+            lessons.insert(0, carousel_lesson)
+            
+            # Keep only last 50 lessons for website
+            lessons = lessons[:50]
+            
+            # Build the JSON structure the website expects
+            website_data = {
+                "lastUpdated": datetime.utcnow().isoformat() + "Z",
+                "lessons": lessons
+            }
+            
+            # Encode
+            new_content = json.dumps(website_data, indent=2, ensure_ascii=False)
+            encoded_content = base64.b64encode(new_content.encode("utf-8")).decode("utf-8")
+            
+            # Prepare request
+            body = {
+                "message": f"🎓 New lesson: {lesson.get('topic', 'Untitled')} ({lesson.get('country', 'Global')})",
+                "content": encoded_content,
+            }
+            if sha:
+                body["sha"] = sha
+            
+            # Push to website repo
+            put_response = await client.put(
+                f"https://api.github.com/repos/{GITHUB_WEBSITE_REPO}/contents/lessons.json",
+                headers={
+                    "Authorization": f"token {GITHUB_TOKEN}",
+                    "Accept": "application/vnd.github.v3+json"
+                },
+                json=body
+            )
+            
+            put_response.raise_for_status()
+            logger.info(f"Pushed lesson {lesson['id']} to website carousel")
+            return True
+    
+    except Exception as e:
+        logger.error(f"Error pushing to website: {e}")
+        return False
+
+
 def create_lesson_record(params: dict, content: str, teacher_name: str = None, public: bool = True) -> dict:
     """Create a lesson record for the repository."""
     return {
@@ -2339,11 +2428,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             saved = await save_lesson_to_github(lesson_record)
             
+            # Also push to website carousel (async, don't block on failure)
+            website_pushed = await push_lesson_to_website(lesson_record)
+            
             if saved:
                 country = session['params'].get('country', 'the world')
+                website_note = "\n📍 Your lesson is now live on tooley.app!" if website_pushed else ""
                 await update.message.reply_text(
                     f"✅ *Shared with the community!*\n\n"
-                    f"Teachers in {country} and beyond can now use your lesson.\n"
+                    f"Teachers in {country} and beyond can now use your lesson.{website_note}\n"
                     f"Thank you for contributing to education worldwide! 🌍",
                     parse_mode='Markdown'
                 )
