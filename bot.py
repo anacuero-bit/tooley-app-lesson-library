@@ -2,11 +2,16 @@
 Tooley - Lesson Plan Generator Bot
 Telegram bot that generates customized lesson plans for teachers worldwide.
 
-Version: 2.10.3
+Version: 2.10.4
 Last Updated: 2026-01-29
 
 CHANGELOG:
 ---------
+v2.10.4 (2026-01-29)
+  - FIXED: PDF/HTML downloads now use InputFile wrapper for reliable delivery
+  - FIXED: HTML buffer seek(0) before sending
+  - FIXED: Better error logging for file sends
+
 v2.10.3 (2026-01-29)
   - CHANGED: Country list limited to English-education countries
   - Removed: China, Brazil, Mexico, Egypt, Vietnam, Turkey (non-English primary)
@@ -58,7 +63,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.10.3"
+VERSION = "2.10.4"
 
 import os
 import logging
@@ -72,7 +77,7 @@ from datetime import datetime
 from io import BytesIO
 import httpx
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -987,10 +992,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             try:
                 pdf_buffer = create_lesson_pdf(lesson_content, session['params'])
-                filename = generate_lesson_filename(session['params']) + '.pdf'
-                await context.bot.send_document(chat_id=update.effective_chat.id, document=pdf_buffer, filename=filename, caption="📄 *PDF ready*", parse_mode='Markdown')
+                if pdf_buffer:
+                    filename = generate_lesson_filename(session['params']) + '.pdf'
+                    await context.bot.send_document(chat_id=update.effective_chat.id, document=InputFile(pdf_buffer, filename=filename), caption="📄 *PDF ready*", parse_mode='Markdown')
             except Exception as e:
                 logger.error(f"PDF error: {e}")
+                logger.error(traceback.format_exc())
             
             keyboard = [
                 [InlineKeyboardButton("🌍 Share", callback_data="share_yes"),
@@ -1034,7 +1041,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     pdf_buffer = create_lesson_pdf(lesson_content, session['params'])
                     if pdf_buffer:
                         filename = generate_lesson_filename(session['params']) + '.pdf'
-                        await context.bot.send_document(chat_id=update.effective_chat.id, document=pdf_buffer, filename=filename, caption=f"📄 *PDF ready*", parse_mode='Markdown')
+                        await context.bot.send_document(chat_id=update.effective_chat.id, document=InputFile(pdf_buffer, filename=filename), caption=f"📄 *PDF ready*", parse_mode='Markdown')
                     else:
                         await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ _PDF issue, content above._", parse_mode='Markdown')
                 except Exception as e:
@@ -1047,10 +1054,12 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 try:
                     html_content = create_lesson_html(lesson_content, session['params'])
                     html_buffer = BytesIO(html_content.encode('utf-8'))
+                    html_buffer.seek(0)
                     filename = generate_lesson_filename(session['params']) + '.html'
-                    await context.bot.send_document(chat_id=update.effective_chat.id, document=html_buffer, filename=filename, caption=f"🌐 *HTML ready*\n\n{specs}", parse_mode='Markdown')
+                    await context.bot.send_document(chat_id=update.effective_chat.id, document=InputFile(html_buffer, filename=filename), caption=f"🌐 *HTML ready*", parse_mode='Markdown')
                 except Exception as e:
                     logger.error(f"HTML error: {e}")
+                    logger.error(traceback.format_exc())
             
             keyboard = [
                 [InlineKeyboardButton("🌍 Share", callback_data="share_yes"),
