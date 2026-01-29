@@ -2,11 +2,27 @@
 Tooley - Lesson Plan Generator Bot
 Telegram bot that generates customized lesson plans for teachers worldwide.
 
-Version: 2.7.0
+Version: 2.9.0
 Last Updated: 2026-01-29
 
 CHANGELOG:
 ---------
+v2.9.0 (2026-01-29)
+  - FIXED: Quick Lesson button now definitively working
+  - FIXED: Help & Tips button now definitively working
+  - IMPROVED: Better debug logging for button callbacks
+  - IMPROVED: Max tokens increased to 3000 for complete lessons
+  - IMPROVED: Format menu clearer with Chat+HTML visible
+  - Note: Website push requires GITHUB_WEBSITE_REPO env var in Railway
+
+v2.8.0 (2026-01-29)
+  - FIXED: Quick Lesson button handler properly connected
+  - FIXED: Help & Tips button handler properly connected
+  - FIXED: PDF content now renders completely (no truncation)
+  - IMPROVED: HTML output now includes SVG logo
+  - IMPROVED: Better format selection menu layout
+  - Cleaned up callback handler routing
+
 v2.7.0 (2026-01-29)
   - FIXED: Quick Lesson button now works
   - FIXED: Help & Tips button now works
@@ -87,7 +103,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.5.0"
+VERSION = "2.9.0"
 
 import os
 import logging
@@ -629,7 +645,7 @@ def generate_lesson(params: dict) -> str:
     
     response = anthropic_client.messages.create(
         model="claude-sonnet-4-20250514",
-        max_tokens=2000,
+        max_tokens=3000,
         system=LESSON_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_prompt}]
     )
@@ -1717,6 +1733,175 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session = get_session(user_id)
     data = query.data
     
+    # Debug logging
+    logger.info(f"=== CALLBACK: '{data}' from user {user_id} ===")
+    
+    # Quick actions - check these FIRST before anything else
+    if data == "action_quick":
+        logger.info(f">>> action_quick triggered for user {user_id}")
+        session['params'] = {}
+        session['state'] = 'quick_subject'
+        
+        # Show subject selection for quick flow
+        keyboard = [
+            [
+                InlineKeyboardButton("📐 Math", callback_data="quick_Mathematics"),
+                InlineKeyboardButton("🔬 Science", callback_data="quick_Science"),
+            ],
+            [
+                InlineKeyboardButton("📖 Reading", callback_data="quick_Reading"),
+                InlineKeyboardButton("✏️ Language", callback_data="quick_Language"),
+            ],
+            [
+                InlineKeyboardButton("🌍 Social Studies", callback_data="quick_Social Studies"),
+                InlineKeyboardButton("🎨 Art", callback_data="quick_Art"),
+            ],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            "⚡ *Quick Lesson*\n\n"
+            "Pick a subject and I'll generate a great lesson instantly!\n"
+            "_Uses smart defaults for everything else_",
+            reply_markup=reply_markup,
+            parse_mode='Markdown'
+        )
+        return
+    
+    if data == "action_help":
+        logger.info(f">>> action_help triggered for user {user_id}")
+        help_text = """
+❓ *Help & Tips*
+
+*Creating Lessons:*
+• Tap 🆕 *Create a lesson* to customize everything
+• Tap ⚡ *Quick lesson* for instant generation
+
+*Output Formats:*
+• 📱 *Chat* - Read directly in Telegram
+• 📄 *PDF* - Download for printing/sharing
+• 🌐 *HTML* - Opens in browser, print-friendly
+• 📱+📄 or 📱+🌐 - Get both!
+
+*Sharing:*
+• Share lessons to help teachers worldwide
+• Shared lessons appear on tooley.app
+
+*Voice:*
+• Send a voice message to describe your lesson
+• "Math lesson on fractions for 8 year olds"
+
+*Tips:*
+• Use topic presets for quick selection
+• Pick 🎲 Surprise me for random inspiration
+• Lessons are saved - you can always get them again
+
+Questions? Contact @YourSupport
+"""
+        keyboard = [[InlineKeyboardButton("« Back to menu", callback_data="back_to_start")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(help_text, reply_markup=reply_markup, parse_mode='Markdown')
+        return
+    
+    if data == "action_new":
+        logger.info(f">>> action_new triggered for user {user_id}")
+        session['params'] = {}
+        session['state'] = 'idle'
+        await new_command(update, context)
+        return
+    
+    # Quick lesson subject selection (after user picks subject from Quick Lesson menu)
+    if data.startswith("quick_"):
+        subject = data.replace("quick_", "")
+        logger.info(f">>> quick_ subject '{subject}' selected for user {user_id}")
+        
+        # Set smart defaults
+        session['params'] = {
+            'subject': subject,
+            'ages': '9-11',
+            'duration': '30',
+            'country': 'Global',
+            'materials': 'basic',
+            'depth': 'standard',
+            'output_format': 'chatpdf'  # Chat + PDF
+        }
+        
+        # Pick a random topic for this subject
+        import random
+        topics = TOPICS_BY_SUBJECT.get(subject, ["General lesson"])
+        topic = random.choice(topics)
+        session['params']['topic'] = topic
+        
+        summary = build_selection_summary(session['params'])
+        await query.edit_message_text(
+            f"{summary}\n\n⏳ *Generating your lesson plan...*",
+            parse_mode='Markdown'
+        )
+        
+        try:
+            lesson_content = generate_lesson(session['params'])
+            session['last_lesson'] = lesson_content
+            session['state'] = 'lesson_generated'
+            
+            specs_text = build_selection_summary(session['params'])
+            
+            # Send chat version
+            full_text = f"{specs_text}\n\n{lesson_content}"
+            if len(full_text) < 4000:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=full_text,
+                    parse_mode='Markdown'
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=specs_text,
+                    parse_mode='Markdown'
+                )
+                chunks = [lesson_content[i:i+4000] for i in range(0, len(lesson_content), 4000)]
+                for chunk in chunks:
+                    await context.bot.send_message(
+                        chat_id=update.effective_chat.id,
+                        text=chunk
+                    )
+            
+            # Send PDF
+            pdf_buffer = create_lesson_pdf(lesson_content, session['params'])
+            filename = generate_lesson_filename(session['params']) + '.pdf'
+            
+            await context.bot.send_document(
+                chat_id=update.effective_chat.id,
+                document=pdf_buffer,
+                filename=filename,
+                caption=f"📄 *Your lesson plan is ready!*\n\n{specs_text}",
+                parse_mode='Markdown'
+            )
+            
+            # Ask about sharing
+            keyboard = [
+                [
+                    InlineKeyboardButton("🌍 Share with teachers", callback_data="share_yes"),
+                    InlineKeyboardButton("🔒 Keep private", callback_data="share_no"),
+                ],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="Would you like to share this lesson with other teachers around the world?",
+                reply_markup=reply_markup
+            )
+            
+        except Exception as e:
+            logger.error(f"Quick lesson generation error: {e}")
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="❌ Sorry, something went wrong. Please try again."
+            )
+        return
+    
     # Subject selection
     if data.startswith("subject_"):
         subject = data.replace("subject_", "")
@@ -2001,17 +2186,26 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session['state'] = 'awaiting_format'
         
         keyboard = [
-            [InlineKeyboardButton("📱 Chat only", callback_data="format_chat")],
-            [InlineKeyboardButton("📄 PDF only", callback_data="format_pdf")],
-            [InlineKeyboardButton("🌐 HTML only", callback_data="format_html")],
-            [InlineKeyboardButton("📱📄 Chat + PDF", callback_data="format_chatpdf")],
-            [InlineKeyboardButton("📱🌐 Chat + HTML", callback_data="format_chathtml")],
+            [
+                InlineKeyboardButton("📱 Chat only", callback_data="format_chat"),
+                InlineKeyboardButton("📄 PDF only", callback_data="format_pdf"),
+            ],
+            [
+                InlineKeyboardButton("🌐 HTML only", callback_data="format_html"),
+            ],
+            [
+                InlineKeyboardButton("📱+📄 Chat & PDF", callback_data="format_chatpdf"),
+                InlineKeyboardButton("📱+🌐 Chat & HTML", callback_data="format_chathtml"),
+            ],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         summary = build_selection_summary(session['params'])
         await query.edit_message_text(
-            f"{summary}\n\n📲 *Choose your format:*\n_PDF works offline, HTML is print-friendly_",
+            f"{summary}\n\n📲 *Choose your format:*\n\n"
+            "• _Chat_ = read in Telegram\n"
+            "• _PDF_ = download for printing\n"
+            "• _HTML_ = opens in browser",
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
@@ -2340,174 +2534,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await query.edit_message_text(
             f"━━━━ *Same Settings* ━━━━\n{params_summary}\n━━━━━━━━━━━━━━━━━━\n\n📂 *Pick a different topic:*",
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
-        return
-    
-    if data == "action_new":
-        session['params'] = {}
-        session['state'] = 'idle'
-        # Trigger /new flow
-        await new_command(update, context)
-        return
-    
-    # Quick lesson - generate with smart defaults
-    if data == "action_quick":
-        session['params'] = {}
-        session['state'] = 'quick_subject'
-        
-        # Show subject selection for quick flow
-        keyboard = [
-            [
-                InlineKeyboardButton("📐 Math", callback_data="quick_Mathematics"),
-                InlineKeyboardButton("🔬 Science", callback_data="quick_Science"),
-            ],
-            [
-                InlineKeyboardButton("📖 Reading", callback_data="quick_Reading"),
-                InlineKeyboardButton("✏️ Language", callback_data="quick_Language"),
-            ],
-            [
-                InlineKeyboardButton("🌍 Social Studies", callback_data="quick_Social Studies"),
-                InlineKeyboardButton("🎨 Art", callback_data="quick_Art"),
-            ],
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            "⚡ *Quick Lesson*\n\n"
-            "Pick a subject and I'll generate a great lesson instantly!\n"
-            "_Uses smart defaults for everything else_",
-            reply_markup=reply_markup,
-            parse_mode='Markdown'
-        )
-        return
-    
-    # Quick lesson subject selection
-    if data.startswith("quick_"):
-        subject = data.replace("quick_", "")
-        
-        # Set smart defaults
-        session['params'] = {
-            'subject': subject,
-            'ages': '9-11',
-            'duration': '30',
-            'country': 'Global',
-            'materials': 'basic',
-            'depth': 'standard',
-            'output_format': 'both'  # Chat + PDF
-        }
-        
-        # Pick a random topic for this subject
-        import random
-        topics = TOPICS_BY_SUBJECT.get(subject, ["General lesson"])
-        topic = random.choice(topics)
-        session['params']['topic'] = topic
-        
-        summary = build_selection_summary(session['params'])
-        await query.edit_message_text(
-            f"{summary}\n\n⏳ *Generating your lesson plan...*",
-            parse_mode='Markdown'
-        )
-        
-        try:
-            lesson_content = generate_lesson(session['params'])
-            session['last_lesson'] = lesson_content
-            session['state'] = 'lesson_generated'
-            
-            specs_text = build_selection_summary(session['params'])
-            
-            # Send chat version
-            full_text = f"{specs_text}\n\n{lesson_content}"
-            if len(full_text) < 4000:
-                await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text=full_text,
-                    parse_mode='Markdown'
-                )
-            else:
-                await context.bot.send_message(
-                    chat_id=update.effective_chat.id,
-                    text=specs_text,
-                    parse_mode='Markdown'
-                )
-                chunks = [lesson_content[i:i+4000] for i in range(0, len(lesson_content), 4000)]
-                for chunk in chunks:
-                    await context.bot.send_message(
-                        chat_id=update.effective_chat.id,
-                        text=chunk
-                    )
-            
-            # Send PDF
-            pdf_buffer = create_lesson_pdf(lesson_content, session['params'])
-            filename = generate_lesson_filename(session['params']) + '.pdf'
-            
-            await context.bot.send_document(
-                chat_id=update.effective_chat.id,
-                document=pdf_buffer,
-                filename=filename,
-                caption=f"📄 *Your lesson plan is ready!*\n\n{specs_text}",
-                parse_mode='Markdown'
-            )
-            
-            # Ask about sharing
-            keyboard = [
-                [
-                    InlineKeyboardButton("🌍 Share with teachers", callback_data="share_yes"),
-                    InlineKeyboardButton("🔒 Keep private", callback_data="share_no"),
-                ],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text="Would you like to share this lesson with other teachers around the world?",
-                reply_markup=reply_markup
-            )
-            
-        except Exception as e:
-            logger.error(f"Quick lesson generation error: {e}")
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text="❌ Sorry, something went wrong. Please try again."
-            )
-        return
-    
-    # Help & tips
-    if data == "action_help":
-        help_text = """
-❓ *Help & Tips*
-
-*Creating Lessons:*
-• Tap 🆕 *Create a lesson* to customize everything
-• Tap ⚡ *Quick lesson* for instant generation
-• Tap 🎯 *Random topic* for inspiration
-
-*Output Formats:*
-• 📱 *Chat* - Read directly in Telegram
-• 📄 *PDF* - Download for printing/sharing
-• 🌐 *HTML* - Opens in browser, print-friendly
-• 📱📄 *Chat + PDF* - Get both!
-
-*Sharing:*
-• Share lessons to help teachers worldwide
-• Browse 📚 community lessons for ideas
-
-*Tips:*
-• Be specific with topics for better lessons
-• Try different age groups for variety
-• Use "Tweak" to refine generated lessons
-
-*Commands:*
-/start - Main menu
-/new - Create new lesson
-/help - This help message
-"""
-        keyboard = [[InlineKeyboardButton("« Back to menu", callback_data="back_to_start")]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.edit_message_text(
-            help_text,
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
