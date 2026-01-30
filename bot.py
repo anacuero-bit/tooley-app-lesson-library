@@ -78,7 +78,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.10.8"
+VERSION = "2.10.9"
 
 import os
 import logging
@@ -942,7 +942,69 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "*Tooley Help*\n\n/start - Main menu\n/lesson - Start new lesson\n/help - This help\n\n*Formats:*\n📱 Chat = read in Telegram\n📄 PDF = download for printing\n🌐 HTML = opens in browser",
+        "*Tooley Help*\n\n"
+        "/start - Main menu\n"
+        "/lesson - Start new lesson\n"
+        "/subjects - See available subjects\n"
+        "/about - About Tooley\n"
+        "/feedback - Send us feedback\n"
+        "/help - This help\n\n"
+        "*Formats:*\n"
+        "📱 Chat = read in Telegram\n"
+        "📄 PDF = download for printing\n"
+        "🌐 HTML = opens in browser",
+        parse_mode='Markdown'
+    )
+
+
+async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📚 *About Tooley*\n\n"
+        "Tooley is a free AI-powered lesson plan generator built for teachers in low-resource schools.\n\n"
+        "🎯 *Our Mission*\n"
+        "Every teacher deserves quality lesson plans, regardless of resources or location.\n\n"
+        "✨ *Features*\n"
+        "• Create complete lesson plans in minutes\n"
+        "• Curriculum-aligned content\n"
+        "• Multiple subjects supported\n"
+        "• Download as PDF for offline use\n"
+        "• Always free\n\n"
+        "🌍 *Community*\n"
+        "Join thousands of teachers worldwide using Tooley.\n\n"
+        "💛 Built with love for teachers everywhere.\n\n"
+        "🔗 tooley.app",
+        parse_mode='Markdown'
+    )
+
+
+async def subjects_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📚 *Available Subjects*\n\n"
+        "📐 *Mathematics* - Numbers, geometry, algebra, problem-solving\n\n"
+        "🔬 *Science* - Biology, physics, chemistry, nature\n\n"
+        "📖 *Reading* - Comprehension, phonics, literature\n\n"
+        "✏️ *Language Arts* - Writing, grammar, vocabulary\n\n"
+        "🌍 *Social Studies* - History, geography, civics\n\n"
+        "🎨 *Art & Music* - Creative expression, crafts\n\n"
+        "📝 *Other* - Any custom topic you need!\n\n"
+        "Ready? Use /lesson to create a plan!",
+        parse_mode='Markdown'
+    )
+
+
+async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    session = get_session(user_id)
+    session['state'] = 'awaiting_feedback'
+    
+    await update.message.reply_text(
+        "💬 *We'd love your feedback!*\n\n"
+        "Tell us:\n"
+        "• What's working well?\n"
+        "• What could be better?\n"
+        "• What features would you like?\n\n"
+        "Just type your message and send it.\n\n"
+        "_Your feedback helps us improve Tooley for teachers everywhere._",
         parse_mode='Markdown'
     )
 
@@ -1344,6 +1406,30 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     logger.info(f"Text from {user_id}: '{text[:30]}...' state={state}")
     
+    # Handle feedback
+    if state == 'awaiting_feedback':
+        user = update.effective_user
+        username = user.username or "no_username"
+        name = user.full_name or "Anonymous"
+        
+        logger.info(f"FEEDBACK from {name} (@{username}): {text}")
+        
+        keyboard = [
+            [InlineKeyboardButton("✨ Create a lesson", callback_data="action_new")],
+            [InlineKeyboardButton("🏠 Menu", callback_data="action_menu")],
+        ]
+        
+        await update.message.reply_text(
+            "🙏 *Thank you for your feedback!*\n\n"
+            "Your input helps us make Tooley better for teachers everywhere.\n\n"
+            "What would you like to do next?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        
+        session['state'] = 'idle'
+        return
+    
     if state == 'awaiting_teacher_name':
         teacher_name = "Anonymous" if text.lower() == 'skip' else text
         
@@ -1437,6 +1523,9 @@ def main():
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("lesson", lesson_command))
+    application.add_handler(CommandHandler("about", about_command))
+    application.add_handler(CommandHandler("subjects", subjects_command))
+    application.add_handler(CommandHandler("feedback", feedback_command))
     application.add_handler(CallbackQueryHandler(callback_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
     application.add_handler(MessageHandler(filters.VOICE, voice_handler))
