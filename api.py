@@ -12,6 +12,10 @@ Endpoints:
 
 Deploy as second Railway service from same repo as bot.
 Start command: uvicorn api:app --host 0.0.0.0 --port $PORT
+
+Changelog:
+- 1.1.0: Added style parameter support
+- 1.0.0: Initial release
 """
 
 import os
@@ -61,7 +65,7 @@ class LessonRequest(BaseModel):
     duration: str = "45"
     country: str = "Global"
     materials: str = "basic"
-    style: str = "mixed"
+    style: str = "mixed"  # NEW: teaching style parameter
 
 
 class PDFRequest(BaseModel):
@@ -92,19 +96,16 @@ def build_lesson_prompt(params: LessonRequest) -> str:
     }
     
     style_desc = {
-        'interactive': 'Use highly interactive methods with games, group work, movement, and hands-on activities.',
-        'structured': 'Use structured, traditional methods with clear teacher-led instruction and practice.',
-        'storytelling': 'Use story-based learning with narratives, characters, and imaginative scenarios.',
-        'mixed': 'Use a balanced mix of interactive activities and direct instruction.'
+        'interactive': 'Use highly interactive methods with games, group work, movement, and hands-on activities. Minimize lecture time.',
+        'structured': 'Use traditional structured approach with clear teacher-led instruction, note-taking, and individual practice.',
+        'storytelling': 'Use story-based learning with narratives, characters, and scenario-based activities to teach concepts.',
+        'mixed': 'Use a balanced mix of interactive activities and direct instruction appropriate for the content.'
     }
-    
-    style_instruction = style_desc.get(params.style, style_desc['mixed'])
     
     return f"""Create a {params.duration}-minute lesson plan on **{params.topic}** for {params.subject}.
 Students are ages {params.ages}. Location: {params.country}
 Materials: {materials_desc.get(params.materials, params.materials)}
-
-Teaching Style: {style_instruction}
+Teaching Style: {style_desc.get(params.style, style_desc['mixed'])}
 
 Structure with these sections (all must have content):
 
