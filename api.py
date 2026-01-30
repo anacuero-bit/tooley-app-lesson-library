@@ -2,7 +2,7 @@
 Tooley Web API
 Lightweight backend for the Tooley PWA.
 
-Version: 1.0.0
+Version: 1.1.0
 Last Updated: 2026-01-30
 
 Endpoints:
@@ -37,7 +37,7 @@ if not ANTHROPIC_API_KEY:
     raise ValueError("ANTHROPIC_API_KEY or CLAUDE_API_KEY required")
 
 # Initialize
-app = FastAPI(title="Tooley API", version="1.0.0")
+app = FastAPI(title="Tooley API", version="1.1.0")
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # CORS - allow web app
@@ -61,6 +61,7 @@ class LessonRequest(BaseModel):
     duration: str = "45"
     country: str = "Global"
     materials: str = "basic"
+    style: str = "mixed"
 
 
 class PDFRequest(BaseModel):
@@ -90,9 +91,20 @@ def build_lesson_prompt(params: LessonRequest) -> str:
         'standard': 'Full classroom supplies available'
     }
     
+    style_desc = {
+        'interactive': 'Use highly interactive methods with games, group work, movement, and hands-on activities.',
+        'structured': 'Use structured, traditional methods with clear teacher-led instruction and practice.',
+        'storytelling': 'Use story-based learning with narratives, characters, and imaginative scenarios.',
+        'mixed': 'Use a balanced mix of interactive activities and direct instruction.'
+    }
+    
+    style_instruction = style_desc.get(params.style, style_desc['mixed'])
+    
     return f"""Create a {params.duration}-minute lesson plan on **{params.topic}** for {params.subject}.
 Students are ages {params.ages}. Location: {params.country}
 Materials: {materials_desc.get(params.materials, params.materials)}
+
+Teaching Style: {style_instruction}
 
 Structure with these sections (all must have content):
 
@@ -132,7 +144,7 @@ CRITICAL: Every section must have real content."""
 
 def generate_lesson(params: LessonRequest) -> str:
     prompt = build_lesson_prompt(params)
-    logger.info(f"Generating lesson: {params.subject} - {params.topic}")
+    logger.info(f"Generating lesson: {params.subject} - {params.topic} (style: {params.style})")
     
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -247,7 +259,7 @@ async def root():
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "tooley-api", "version": "1.0.0"}
+    return {"status": "ok", "service": "tooley-api", "version": "1.1.0"}
 
 
 @app.post("/api/lesson")
