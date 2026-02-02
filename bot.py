@@ -2,11 +2,18 @@
 Tooley - Lesson Plan Generator Bot
 Telegram bot that generates customized lesson plans for teachers worldwide.
 
-Version: 2.10.8
-Last Updated: 2026-01-29
+Version: 2.11.0
+Last Updated: 2026-02-02
 
 CHANGELOG:
 ---------
+v2.11.0 (2026-02-02)
+  - NEW: Multi-language support (English + Spanish)
+  - NEW: Language selection at /start (remembers preference)
+  - NEW: All UI strings now use translations system
+  - NEW: Lessons generated in selected language via Claude prompt
+  - NEW: /language command to change language anytime
+
 v2.10.8 (2026-01-29)
   - IMPROVED: PDF header - removed "AI Lesson Plans for Teachers" text and horizontal line
   - IMPROVED: PDF logo now amber color (#d97706) instead of navy
@@ -18,58 +25,6 @@ v2.10.7 (2026-01-29)
   - ADDED: HTML output to Quick Lesson flow (now sends Chat + PDF + HTML)
   - IMPROVED: PDF branding in fallback attempt 3 (now has Tooley header/footer)
 
-v2.10.6 (2026-01-29)
-  - FIXED: Menu button width - single column layout for all subject menus
-  - FIXED: Better subject labels (Language Arts, Art & Music, Mathematics)
-
-v2.10.4 (2026-01-29)
-  - FIXED: PDF/HTML downloads now use InputFile wrapper for reliable delivery
-  - FIXED: HTML buffer seek(0) before sending
-  - FIXED: Better error logging for file sends
-
-v2.10.3 (2026-01-29)
-  - CHANGED: Country list limited to English-education countries
-  - Removed: China, Brazil, Mexico, Egypt, Vietnam, Turkey (non-English primary)
-  - Added: Ghana, Tanzania, South Africa, Jamaica, Rwanda
-  - Kept: India, Pakistan, Nigeria, Bangladesh, Philippines, Kenya, Uganda, US, UK, Australia, Canada
-
-v2.10.2 (2026-01-29)
-  - IMPROVED: PDF generation with triple-fallback system
-  - IMPROVED: Unicode/emoji handling in safe() method - comprehensive replacements
-  - IMPROVED: Better PDF logging with byte sizes
-  - FIXED: PDF emoji crashes (checkmarks, stars, arrows, etc. now converted)
-  
-v2.10.1 (2026-01-29)
-  - FIXED: Format menu now shows Chat+PDF | Chat+HTML (not HTML+PDF)
-  - FIXED: HTML output now has ACTUAL SVG logo embedded
-  - FIXED: PDF fallback more robust, handles None return
-  - IMPROVED: PDF error logging with full traceback
-  - NOTE: Website push requires GITHUB_WEBSITE_REPO env var on Railway
-
-v2.10.0 (2026-01-29)
-  - FIXED: Format button handlers now definitively working
-  - FIXED: PDF generation error handling improved
-  - FIXED: HTML output now properly branded with logo
-  - FIXED: Website push - better error logging and validation
-  - CHANGED: Format button layout reorganized:
-    * Row 1: Chat only (full width)
-    * Row 2: PDF only | HTML only
-    * Row 3: Chat+PDF | Chat+HTML
-  - IMPROVED: More robust callback handler routing
-  - IMPROVED: Debug logging throughout format/generation flow
-
-v2.9.0 (2026-01-29)
-  - FIXED: Quick Lesson button now definitively working
-  - FIXED: Help & Tips button now definitively working
-
-v2.8.0 (2026-01-29)
-  - FIXED: Quick Lesson button handler properly connected
-  - FIXED: Help & Tips button handler properly connected
-  - FIXED: PDF content now renders completely (no truncation)
-
-v2.7.0 (2026-01-29)
-  - REWRITE: Simpler PDF generation for reliability
-
 Stack:
 - python-telegram-bot for Telegram interface
 - anthropic for Claude API (lesson generation)
@@ -78,7 +33,7 @@ Stack:
 - GitHub API for lesson repository storage
 """
 
-VERSION = "2.10.9"
+VERSION = "2.11.0"
 
 import os
 import logging
@@ -117,6 +72,280 @@ GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 GITHUB_REPO = os.environ.get("GITHUB_REPO", "tooley/lesson-library")
 GITHUB_WEBSITE_REPO = os.environ.get("GITHUB_WEBSITE_REPO")
 LESSONS_FILE = "lessons.json"
+
+# ============================================================================
+# TRANSLATIONS
+# ============================================================================
+
+TRANSLATIONS = {
+    "en": {
+        # Language selection
+        "lang_prompt": "🌐 *Choose your language:*",
+        "lang_english": "🇬🇧 English",
+        "lang_spanish": "🇪🇸 Español",
+        "lang_changed": "✅ Language set to English",
+        
+        # Welcome & Menu
+        "welcome": "👋 *Welcome to Tooley!*\n\nI create lesson plans for teachers around the world.\n\nWhat would you like to do?",
+        "welcome_back": "👋 *Welcome to Tooley!*\n\nWhat would you like to do?",
+        "quick_lesson": "⚡ Quick Lesson",
+        "custom_lesson": "✨ Custom Lesson",
+        "help_tips": "❓ Help & Tips",
+        "change_language": "🌐 Language",
+        
+        # Quick Lesson
+        "quick_title": "⚡ *Quick Lesson*\n\nPick a subject and I'll generate instantly!\n_Smart defaults: Ages 9-11, 30 min, basic materials_",
+        
+        # Subjects
+        "subject_prompt": "📚 *Let's create a lesson!*\n\nWhat subject?",
+        "subj_mathematics": "📐 Mathematics",
+        "subj_science": "🔬 Science",
+        "subj_reading": "📖 Reading",
+        "subj_language": "✏️ Language Arts",
+        "subj_social": "🌍 Social Studies",
+        "subj_art": "🎨 Art & Music",
+        "subj_other": "📝 Other Topic...",
+        "subject_other_prompt": "Type your subject:",
+        
+        # Topic
+        "topic_prompt": "📝 *Topic*\n\nChoose a suggestion or type your own:",
+        "topic_custom": "✏️ Type my own",
+        "topic_type_prompt": "Type your topic:",
+        
+        # Ages
+        "ages_prompt": "🧒🏽 Age group?",
+        
+        # Duration
+        "duration_prompt": "⏱️ Duration?",
+        "min": "min",
+        
+        # Country
+        "country_prompt": "📍 *Where do you teach?*\n\n_This helps tailor the lesson to your curriculum._",
+        "country_global": "🌍 Global",
+        
+        # Materials
+        "materials_prompt": "📦 Materials available?",
+        "mat_none": "🎭 None (verbal only)",
+        "mat_basic": "📝 Basic (paper, pencils)",
+        "mat_standard": "📦 Full classroom",
+        
+        # Style
+        "style_prompt": "🎯 Teaching style?",
+        "style_interactive": "🎮 Interactive",
+        "style_structured": "📋 Structured",
+        "style_storytelling": "📖 Story-based",
+        "style_mixed": "⚖️ Mixed",
+        
+        # Format
+        "format_prompt": "📲 *Choose format:*\n• _Chat_ = read here\n• _PDF_ = print\n• _HTML_ = browser",
+        "fmt_chat": "📱 Chat only",
+        "fmt_pdf": "📄 PDF only",
+        "fmt_html": "🌐 HTML only",
+        "fmt_chatpdf": "📱+📄 Chat+PDF",
+        "fmt_chathtml": "📱+🌐 Chat+HTML",
+        
+        # Generation
+        "generating": "⏳ *Generating your lesson...*\n\n_This may take 15-30 seconds._",
+        "lesson_ready": "✅ *Your lesson is ready!*",
+        "generation_error": "❌ Error generating lesson. Please try again.",
+        
+        # Sharing
+        "share_prompt": "🌍 *Share with the community?*\n\nYour lesson will appear on tooley.app for other teachers to use.",
+        "share_yes": "✅ Yes, share",
+        "share_no": "🔒 Keep private",
+        "share_name_prompt": "🌍 *Thank you!*\n\nYour name? (or 'skip' for anonymous)",
+        "share_success": "🎉 *Shared!*\n\n📍 Live on tooley.app!\n\nWhat's next?",
+        "share_success_basic": "🎉 *Shared!*\n\nWhat's next?",
+        "saved_private": "👍 Saved privately.\n\nWhat's next?",
+        
+        # Actions
+        "new_lesson": "✨ New lesson",
+        "menu": "🏠 Menu",
+        "back": "← Back",
+        
+        # Summary
+        "summary_header": "━━━━ *Your Lesson* ━━━━",
+        "summary_footer": "━━━━━━━━━━━━━━━━━━",
+        "lbl_subject": "📚 Subject",
+        "lbl_topic": "📝 Topic",
+        "lbl_ages": "🧒🏽 Ages",
+        "lbl_duration": "⏱ Duration",
+        "lbl_location": "📍 Location",
+        "lbl_materials": "📦 Materials",
+        "lbl_style": "🎯 Style",
+        
+        # Help
+        "help_text": "*Tooley Help*\n\n⚡ *Quick* — Pick subject, I handle the rest\n✨ *Custom* — Full control\n\n*Formats:*\n📱 Chat = read here\n📄 PDF = print\n🌐 HTML = browser\n\n*Sharing:* Your lessons appear on tooley.app!",
+        "help_command": "*Tooley Help*\n\n/start - Main menu\n/lesson - Start new lesson\n/subjects - See available subjects\n/language - Change language\n/about - About Tooley\n/feedback - Send us feedback\n/help - This help\n\n*Formats:*\n📱 Chat = read in Telegram\n📄 PDF = download for printing\n🌐 HTML = opens in browser",
+        
+        # About
+        "about": "📚 *About Tooley*\n\nTooley is a free AI-powered lesson plan generator built for teachers in low-resource schools.\n\n🎯 *Our Mission*\nEvery teacher deserves quality lesson plans, regardless of resources or location.\n\n✨ *Features*\n• Create complete lesson plans in minutes\n• Curriculum-aligned content\n• Multiple subjects supported\n• Download as PDF for offline use\n• Always free\n\n🌍 *Community*\nJoin thousands of teachers worldwide using Tooley.\n\n💛 Built with love for teachers everywhere.\n\n🔗 tooley.app",
+        
+        # Subjects list
+        "subjects_list": "📚 *Available Subjects*\n\n📐 *Mathematics* - Numbers, geometry, algebra, problem-solving\n\n🔬 *Science* - Biology, physics, chemistry, nature\n\n📖 *Reading* - Comprehension, phonics, literature\n\n✏️ *Language Arts* - Writing, grammar, vocabulary\n\n🌍 *Social Studies* - History, geography, civics\n\n🎨 *Art & Music* - Creative expression, crafts\n\n📝 *Other* - Any custom topic you need!\n\nReady? Use /lesson to create a plan!",
+        
+        # Feedback
+        "feedback_prompt": "💬 *We'd love your feedback!*\n\nTell us:\n• What's working well?\n• What could be better?\n• What features would you like?\n\nJust type your message and send it.\n\n_Your feedback helps us improve Tooley for teachers everywhere._",
+        "feedback_thanks": "🙏 *Thank you for your feedback!*\n\nYour input helps us make Tooley better for teachers everywhere.\n\nWhat would you like to do next?",
+        
+        # Errors
+        "voice_not_configured": "Voice not configured. Please type.",
+        "voice_error": "Voice error. Please type.",
+        "voice_unclear": "Couldn't hear clearly. Try again?",
+        "use_start": "Use /start to begin!",
+        
+        # PDF/HTML labels
+        "pdf_specs_title": "LESSON SPECIFICATIONS",
+        "pdf_footer": "tooley.app | Free for all teachers",
+    },
+    
+    "es": {
+        # Language selection
+        "lang_prompt": "🌐 *Elige tu idioma:*",
+        "lang_english": "🇬🇧 English",
+        "lang_spanish": "🇪🇸 Español",
+        "lang_changed": "✅ Idioma configurado: Español",
+        
+        # Welcome & Menu
+        "welcome": "👋 *¡Bienvenido a Tooley!*\n\nCreo planes de lección para docentes de todo el mundo.\n\n¿Qué te gustaría hacer?",
+        "welcome_back": "👋 *¡Bienvenido a Tooley!*\n\n¿Qué te gustaría hacer?",
+        "quick_lesson": "⚡ Lección Rápida",
+        "custom_lesson": "✨ Lección Personalizada",
+        "help_tips": "❓ Ayuda",
+        "change_language": "🌐 Idioma",
+        
+        # Quick Lesson
+        "quick_title": "⚡ *Lección Rápida*\n\n¡Elige una materia y generaré al instante!\n_Valores predeterminados: 9-11 años, 30 min, materiales básicos_",
+        
+        # Subjects
+        "subject_prompt": "📚 *¡Creemos una lección!*\n\n¿Qué materia?",
+        "subj_mathematics": "📐 Matemáticas",
+        "subj_science": "🔬 Ciencias",
+        "subj_reading": "📖 Lectura",
+        "subj_language": "✏️ Lenguaje",
+        "subj_social": "🌍 Estudios Sociales",
+        "subj_art": "🎨 Arte y Música",
+        "subj_other": "📝 Otro Tema...",
+        "subject_other_prompt": "Escribe tu materia:",
+        
+        # Topic
+        "topic_prompt": "📝 *Tema*\n\nElige una sugerencia o escribe el tuyo:",
+        "topic_custom": "✏️ Escribir mi tema",
+        "topic_type_prompt": "Escribe tu tema:",
+        
+        # Ages
+        "ages_prompt": "🧒🏽 ¿Grupo de edad?",
+        
+        # Duration
+        "duration_prompt": "⏱️ ¿Duración?",
+        "min": "min",
+        
+        # Country
+        "country_prompt": "📍 *¿Dónde enseñas?*\n\n_Esto ayuda a adaptar la lección a tu currículo._",
+        "country_global": "🌍 Global",
+        
+        # Materials
+        "materials_prompt": "📦 ¿Materiales disponibles?",
+        "mat_none": "🎭 Ninguno (solo verbal)",
+        "mat_basic": "📝 Básicos (papel, lápices)",
+        "mat_standard": "📦 Aula completa",
+        
+        # Style
+        "style_prompt": "🎯 ¿Estilo de enseñanza?",
+        "style_interactive": "🎮 Interactivo",
+        "style_structured": "📋 Estructurado",
+        "style_storytelling": "📖 Narrativo",
+        "style_mixed": "⚖️ Mixto",
+        
+        # Format
+        "format_prompt": "📲 *Elige formato:*\n• _Chat_ = leer aquí\n• _PDF_ = imprimir\n• _HTML_ = navegador",
+        "fmt_chat": "📱 Solo Chat",
+        "fmt_pdf": "📄 Solo PDF",
+        "fmt_html": "🌐 Solo HTML",
+        "fmt_chatpdf": "📱+📄 Chat+PDF",
+        "fmt_chathtml": "📱+🌐 Chat+HTML",
+        
+        # Generation
+        "generating": "⏳ *Generando tu lección...*\n\n_Esto puede tomar 15-30 segundos._",
+        "lesson_ready": "✅ *¡Tu lección está lista!*",
+        "generation_error": "❌ Error al generar la lección. Por favor, intenta de nuevo.",
+        
+        # Sharing
+        "share_prompt": "🌍 *¿Compartir con la comunidad?*\n\nTu lección aparecerá en tooley.app para que otros docentes la usen.",
+        "share_yes": "✅ Sí, compartir",
+        "share_no": "🔒 Mantener privado",
+        "share_name_prompt": "🌍 *¡Gracias!*\n\n¿Tu nombre? (o 'skip' para anónimo)",
+        "share_success": "🎉 *¡Compartido!*\n\n📍 ¡En vivo en tooley.app!\n\n¿Qué sigue?",
+        "share_success_basic": "🎉 *¡Compartido!*\n\n¿Qué sigue?",
+        "saved_private": "👍 Guardado de forma privada.\n\n¿Qué sigue?",
+        
+        # Actions
+        "new_lesson": "✨ Nueva lección",
+        "menu": "🏠 Menú",
+        "back": "← Atrás",
+        
+        # Summary
+        "summary_header": "━━━━ *Tu Lección* ━━━━",
+        "summary_footer": "━━━━━━━━━━━━━━━━━━",
+        "lbl_subject": "📚 Materia",
+        "lbl_topic": "📝 Tema",
+        "lbl_ages": "🧒🏽 Edades",
+        "lbl_duration": "⏱ Duración",
+        "lbl_location": "📍 Ubicación",
+        "lbl_materials": "📦 Materiales",
+        "lbl_style": "🎯 Estilo",
+        
+        # Help
+        "help_text": "*Ayuda de Tooley*\n\n⚡ *Rápida* — Elige materia, yo hago el resto\n✨ *Personalizada* — Control total\n\n*Formatos:*\n📱 Chat = leer aquí\n📄 PDF = imprimir\n🌐 HTML = navegador\n\n*Compartir:* ¡Tus lecciones aparecen en tooley.app!",
+        "help_command": "*Ayuda de Tooley*\n\n/start - Menú principal\n/lesson - Nueva lección\n/subjects - Ver materias\n/language - Cambiar idioma\n/about - Acerca de Tooley\n/feedback - Enviar comentarios\n/help - Esta ayuda\n\n*Formatos:*\n📱 Chat = leer en Telegram\n📄 PDF = descargar para imprimir\n🌐 HTML = abrir en navegador",
+        
+        # About
+        "about": "📚 *Acerca de Tooley*\n\nTooley es un generador gratuito de planes de lección impulsado por IA, creado para docentes en escuelas con recursos limitados.\n\n🎯 *Nuestra Misión*\nTodos los docentes merecen planes de lección de calidad, sin importar los recursos o la ubicación.\n\n✨ *Características*\n• Crea planes de lección completos en minutos\n• Contenido alineado al currículo\n• Múltiples materias disponibles\n• Descarga como PDF para uso sin conexión\n• Siempre gratis\n\n🌍 *Comunidad*\nÚnete a miles de docentes en todo el mundo usando Tooley.\n\n💛 Hecho con amor para docentes de todo el mundo.\n\n🔗 tooley.app",
+        
+        # Subjects list
+        "subjects_list": "📚 *Materias Disponibles*\n\n📐 *Matemáticas* - Números, geometría, álgebra, resolución de problemas\n\n🔬 *Ciencias* - Biología, física, química, naturaleza\n\n📖 *Lectura* - Comprensión, fonética, literatura\n\n✏️ *Lenguaje* - Escritura, gramática, vocabulario\n\n🌍 *Estudios Sociales* - Historia, geografía, civismo\n\n🎨 *Arte y Música* - Expresión creativa, manualidades\n\n📝 *Otro* - ¡Cualquier tema que necesites!\n\n¿Listo? ¡Usa /lesson para crear un plan!",
+        
+        # Feedback
+        "feedback_prompt": "💬 *¡Nos encantaría recibir tus comentarios!*\n\nCuéntanos:\n• ¿Qué está funcionando bien?\n• ¿Qué podría mejorar?\n• ¿Qué características te gustarían?\n\nSolo escribe tu mensaje y envíalo.\n\n_Tus comentarios nos ayudan a mejorar Tooley para docentes de todo el mundo._",
+        "feedback_thanks": "🙏 *¡Gracias por tus comentarios!*\n\nTu opinión nos ayuda a hacer Tooley mejor para docentes de todo el mundo.\n\n¿Qué te gustaría hacer ahora?",
+        
+        # Errors
+        "voice_not_configured": "Voz no configurada. Por favor, escribe.",
+        "voice_error": "Error de voz. Por favor, escribe.",
+        "voice_unclear": "No se escuchó claramente. ¿Intentar de nuevo?",
+        "use_start": "¡Usa /start para comenzar!",
+        
+        # PDF/HTML labels
+        "pdf_specs_title": "ESPECIFICACIONES DE LA LECCIÓN",
+        "pdf_footer": "tooley.app | Gratis para todos los docentes",
+    }
+}
+
+# Country names in both languages
+COUNTRIES_TRANSLATED = {
+    "en": [
+        ("🇮🇳", "India"), ("🇵🇰", "Pakistan"), ("🇳🇬", "Nigeria"),
+        ("🇧🇩", "Bangladesh"), ("🇵🇭", "Philippines"), ("🇰🇪", "Kenya"),
+        ("🇺🇬", "Uganda"), ("🇬🇭", "Ghana"), ("🇹🇿", "Tanzania"),
+        ("🇿🇦", "South Africa"), ("🇷🇼", "Rwanda"), ("🇯🇲", "Jamaica"),
+        ("🇺🇸", "United States"), ("🇬🇧", "United Kingdom"), ("🇦🇺", "Australia"),
+    ],
+    "es": [
+        ("🇮🇳", "India"), ("🇵🇰", "Pakistán"), ("🇳🇬", "Nigeria"),
+        ("🇧🇩", "Bangladesh"), ("🇵🇭", "Filipinas"), ("🇰🇪", "Kenia"),
+        ("🇺🇬", "Uganda"), ("🇬🇭", "Ghana"), ("🇹🇿", "Tanzania"),
+        ("🇿🇦", "Sudáfrica"), ("🇷🇼", "Ruanda"), ("🇯🇲", "Jamaica"),
+        ("🇺🇸", "Estados Unidos"), ("🇬🇧", "Reino Unido"), ("🇦🇺", "Australia"),
+    ]
+}
+
+def t(key, lang="en"):
+    """Get translated string"""
+    return TRANSLATIONS.get(lang, TRANSLATIONS["en"]).get(key, TRANSLATIONS["en"].get(key, key))
+
+def get_countries(lang="en"):
+    """Get country list for language"""
+    return COUNTRIES_TRANSLATED.get(lang, COUNTRIES_TRANSLATED["en"])
 
 # ============================================================================
 # TOPIC POOLS
@@ -176,14 +405,6 @@ def get_random_topics(subject, count=8):
     return random.sample(all_topics, count)
 
 
-COUNTRIES = [
-    ("🇮🇳", "India"), ("🇵🇰", "Pakistan"), ("🇳🇬", "Nigeria"),
-    ("🇧🇩", "Bangladesh"), ("🇵🇭", "Philippines"), ("🇰🇪", "Kenya"),
-    ("🇺🇬", "Uganda"), ("🇬🇭", "Ghana"), ("🇹🇿", "Tanzania"),
-    ("🇿🇦", "South Africa"), ("🇷🇼", "Rwanda"), ("🇯🇲", "Jamaica"),
-    ("🇺🇸", "United States"), ("🇬🇧", "United Kingdom"), ("🇦🇺", "Australia"),
-]
-
 # ============================================================================
 # LOGGING
 # ============================================================================
@@ -206,11 +427,29 @@ user_sessions = {}
 
 def get_session(user_id):
     if user_id not in user_sessions:
-        user_sessions[user_id] = {'state': 'idle', 'params': {}, 'last_lesson': None, 'pending_share': False}
+        user_sessions[user_id] = {
+            'state': 'idle',
+            'params': {},
+            'last_lesson': None,
+            'pending_share': False,
+            'lang': None  # None = not yet selected
+        }
     return user_sessions[user_id]
 
 def reset_session(user_id):
-    user_sessions[user_id] = {'state': 'idle', 'params': {}, 'last_lesson': None, 'pending_share': False}
+    lang = user_sessions.get(user_id, {}).get('lang')  # Preserve language
+    user_sessions[user_id] = {
+        'state': 'idle',
+        'params': {},
+        'last_lesson': None,
+        'pending_share': False,
+        'lang': lang
+    }
+
+def get_lang(user_id):
+    """Get user's language, default to English"""
+    session = get_session(user_id)
+    return session.get('lang') or 'en'
 
 # ============================================================================
 # LESSON GENERATION
@@ -219,11 +458,10 @@ def reset_session(user_id):
 LESSON_SYSTEM_PROMPT = """You are Tooley, an expert educational assistant helping teachers create lesson plans.
 Generate clear, practical lesson plans that teachers can immediately use.
 Focus on active learning, student engagement, and real-world connections.
-Write in clear, simple English. Use numbered steps and bullet points for clarity.
 Every section MUST have substantive content - never leave a section empty."""
 
 
-def build_lesson_prompt(params):
+def build_lesson_prompt(params, lang="en"):
     subject = params.get('subject', 'General')
     topic = params.get('topic', 'Introduction')
     ages = params.get('ages', '8-12')
@@ -238,9 +476,18 @@ def build_lesson_prompt(params):
         'standard': 'Full classroom supplies available'
     }
     
+    # Language instruction
+    if lang == "es":
+        lang_instruction = "\n\n**IMPORTANT: Generate this entire lesson plan in SPANISH (Español).**\n"
+    else:
+        lang_instruction = "\n\nWrite in clear, simple English."
+    
     return f"""Create a {duration}-minute lesson plan on **{topic}** for {subject}.
 Students are ages {ages}. Location: {country}
 Materials: {materials_desc.get(materials, materials)}
+{lang_instruction}
+
+Use numbered steps and bullet points for clarity.
 
 Structure with these sections (all must have content):
 
@@ -278,9 +525,9 @@ Structure with these sections (all must have content):
 CRITICAL: Every section must have real content."""
 
 
-def generate_lesson(params):
-    user_prompt = build_lesson_prompt(params)
-    logger.info(f"Generating lesson: {params.get('subject')} - {params.get('topic')}")
+def generate_lesson(params, lang="en"):
+    user_prompt = build_lesson_prompt(params, lang)
+    logger.info(f"Generating lesson: {params.get('subject')} - {params.get('topic')} (lang={lang})")
     
     response = anthropic_client.messages.create(
         model="claude-sonnet-4-20250514",
@@ -296,9 +543,10 @@ def generate_lesson(params):
 # ============================================================================
 
 class LessonPDF(FPDF):
-    def __init__(self, params=None):
+    def __init__(self, params=None, lang="en"):
         super().__init__()
         self.params = params or {}
+        self.lang = lang
         self.set_auto_page_break(auto=True, margin=25)
         self.add_page()
     
@@ -327,7 +575,7 @@ class LessonPDF(FPDF):
         self.set_font('Helvetica', '', 8)
         self.set_text_color(128, 128, 128)
         self.cell(95, 5, f'Page {self.page_no()}', align='L')
-        self.cell(95, 5, 'tooley.app | Free for all teachers', align='R')
+        self.cell(95, 5, t('pdf_footer', self.lang), align='R')
     
     def safe(self, text):
         if not text:
@@ -339,7 +587,10 @@ class LessonPDF(FPDF):
             '✓': '[x]', '✗': '[ ]', '★': '*', '☆': '*', '●': '*', '○': 'o',
             '▪': '-', '▸': '>', '◦': 'o', '✔': '[x]', '✘': '[ ]',
             '📚': '', '📖': '', '✏': '', '🎯': '', '💡': '', '⏱': '', '👥': '',
-            '🔹': '-', '🔸': '-', '📝': '', '🌟': '*', '⭐': '*'}
+            '🔹': '-', '🔸': '-', '📝': '', '🌟': '*', '⭐': '*',
+            'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+            'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+            'ñ': 'n', 'Ñ': 'N', '¿': '?', '¡': '!'}
         for old, new in replacements.items():
             text = text.replace(old, new)
         # Strip any remaining non-ASCII
@@ -370,7 +621,7 @@ class LessonPDF(FPDF):
         self.set_xy(15, y_start + 4)
         self.set_font('Helvetica', 'B', 10)
         self.set_text_color(217, 119, 6)
-        self.cell(0, 5, 'LESSON SPECIFICATIONS')
+        self.cell(0, 5, t('pdf_specs_title', self.lang))
         self.ln(7)
         
         self.set_font('Helvetica', '', 9)
@@ -400,200 +651,130 @@ class LessonPDF(FPDF):
                 if not safe.strip():
                     continue
                 
-                # Section headers (## )
-                if orig.startswith('## '):
+                if safe.startswith('## '):
                     self.ln(5)
                     self.set_font('Helvetica', 'B', 12)
-                    self.set_text_color(15, 23, 42)
-                    self.multi_cell(0, 6, safe.lstrip('# '))
-                    self.set_draw_color(217, 119, 6)
-                    self.set_line_width(0.5)
-                    self.line(10, self.get_y() + 1, 55, self.get_y() + 1)
-                    self.ln(4)
+                    self.set_text_color(217, 119, 6)
+                    self.multi_cell(0, 6, safe[3:])
                     self.set_font('Helvetica', '', 10)
-                    continue
-                
-                # H1 headers (# )
-                if orig.startswith('# ') and not orig.startswith('## '):
+                    self.set_text_color(15, 23, 42)
+                    self.ln(2)
+                elif safe.startswith('# '):
                     self.ln(5)
                     self.set_font('Helvetica', 'B', 14)
-                    self.set_text_color(15, 23, 42)
-                    self.multi_cell(0, 7, safe.lstrip('# '))
-                    self.ln(3)
+                    self.multi_cell(0, 7, safe[2:])
                     self.set_font('Helvetica', '', 10)
-                    continue
-                
-                # Bold lines
-                if orig.startswith('**') and orig.endswith('**'):
-                    self.ln(3)
-                    self.set_font('Helvetica', 'B', 10)
-                    self.set_text_color(51, 65, 85)
-                    self.multi_cell(0, 5, safe)
-                    self.set_font('Helvetica', '', 10)
-                    self.set_text_color(15, 23, 42)
-                    continue
-                
-                # Bullets
-                if orig.startswith('- ') or orig.startswith('* '):
+                    self.ln(2)
+                elif safe.startswith('- ') or safe.startswith('* '):
                     self.set_x(15)
-                    self.multi_cell(0, 5, '* ' + self.safe(orig[2:]))
-                    continue
-                
-                # Numbered lists
-                if len(orig) > 2 and orig[0].isdigit() and orig[1] in '.):':
-                    self.set_x(12)
+                    self.multi_cell(0, 5, f"  {safe}")
+                elif len(safe) > 2 and safe[0].isdigit() and safe[1] in '.):':
+                    self.set_x(15)
                     self.multi_cell(0, 5, safe)
-                    continue
-                
-                # Regular text
-                self.multi_cell(0, 5, safe)
-            except Exception as line_error:
-                # If a single line fails, just skip it and continue
+                else:
+                    self.multi_cell(0, 5, safe)
+                    self.ln(1)
+            except Exception as e:
+                logger.warning(f"PDF line error: {e}")
                 continue
 
 
-def create_lesson_pdf(content, params):
-    """Generate PDF with multiple fallback levels"""
+def create_lesson_pdf(content, params, lang="en"):
+    logger.info("Creating PDF...")
     
-    # Helper to strip ALL non-ASCII
-    def ascii_only(text):
-        return ''.join(c if ord(c) < 128 else ' ' for c in str(text))
-    
-    # ATTEMPT 1: Full styled PDF
+    # Attempt 1: Full formatting
     try:
-        logger.info("PDF attempt 1: Full styled")
-        pdf = LessonPDF(params)
+        pdf = LessonPDF(params, lang)
         pdf.write_specs(params)
         pdf.write_content(content)
-        
-        pdf_buffer = BytesIO()
-        pdf_output = pdf.output()
-        pdf_buffer.write(pdf_output)
-        pdf_buffer.seek(0)
-        logger.info(f"PDF created successfully, size: {len(pdf_output)} bytes")
-        return pdf_buffer
+        buffer = BytesIO()
+        pdf.output(buffer)
+        buffer.seek(0)
+        data = buffer.getvalue()
+        logger.info(f"PDF created: {len(data)} bytes")
+        if len(data) > 500:
+            return data
     except Exception as e:
         logger.error(f"PDF attempt 1 failed: {e}")
-        logger.error(traceback.format_exc())
     
-    # ATTEMPT 2: Simple PDF with basic formatting
+    # Attempt 2: Simpler formatting
     try:
-        logger.info("PDF attempt 2: Simple format")
         pdf = FPDF()
-        pdf.add_page()
         pdf.set_auto_page_break(auto=True, margin=15)
-        
-        # Header with branding
-        pdf.set_fill_color(217, 119, 6)
-        pdf.rect(10, 10, 4, 12, 'F')
-        pdf.set_xy(18, 10)
-        pdf.set_font('Helvetica', 'B', 18)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(40, 12, 'tooley')
-        pdf.set_xy(150, 14)
-        pdf.set_font('Helvetica', '', 9)
-        pdf.set_text_color(100, 100, 100)
-        pdf.cell(50, 8, 'tooley.app', align='R')
-        pdf.ln(20)
-        
-        # Specs box
-        pdf.set_fill_color(255, 251, 235)
-        pdf.set_draw_color(15, 23, 42)
-        specs_y = pdf.get_y()
-        spec_lines = []
-        if params.get('subject'): spec_lines.append(f"Subject: {params['subject']}")
-        if params.get('topic'): spec_lines.append(f"Topic: {params['topic']}")
-        if params.get('ages'): spec_lines.append(f"Ages: {params['ages']}")
-        if params.get('duration'): spec_lines.append(f"Duration: {params['duration']} min")
-        if params.get('country'): spec_lines.append(f"Location: {params['country']}")
-        
-        box_h = 10 + len(spec_lines) * 6
-        pdf.rect(10, specs_y, 190, box_h, 'DF')
-        pdf.set_xy(15, specs_y + 4)
-        pdf.set_font('Helvetica', 'B', 9)
-        pdf.set_text_color(217, 119, 6)
-        pdf.cell(0, 5, 'LESSON SPECIFICATIONS')
-        pdf.ln(6)
-        pdf.set_font('Helvetica', '', 9)
-        pdf.set_text_color(15, 23, 42)
-        for spec in spec_lines:
-            pdf.set_x(15)
-            pdf.cell(0, 5, ascii_only(spec))
-            pdf.ln(5)
-        pdf.set_y(specs_y + box_h + 8)
-        
-        # Content - FULL content, no truncation
+        pdf.add_page()
         pdf.set_font('Helvetica', '', 10)
-        for line in content.split('\n'):
-            safe = ascii_only(line)
-            if not safe.strip():
-                pdf.ln(3)
-                continue
-            if safe.strip().startswith('##'):
-                pdf.ln(4)
-                pdf.set_font('Helvetica', 'B', 12)
-                pdf.multi_cell(0, 6, safe.replace('#', '').strip())
-                pdf.set_font('Helvetica', '', 10)
-            elif safe.strip().startswith('**') and safe.strip().endswith('**'):
-                pdf.ln(2)
-                pdf.set_font('Helvetica', 'B', 10)
-                pdf.multi_cell(0, 5, safe.replace('*', ''))
-                pdf.set_font('Helvetica', '', 10)
-            elif safe.strip().startswith('- ') or safe.strip().startswith('* '):
-                pdf.set_x(15)
-                pdf.multi_cell(0, 5, '* ' + safe.strip()[2:])
-            else:
-                pdf.multi_cell(0, 5, safe)
         
-        pdf_buffer = BytesIO()
-        pdf_output = pdf.output()
-        pdf_buffer.write(pdf_output)
-        pdf_buffer.seek(0)
-        logger.info(f"PDF attempt 2 success, size: {len(pdf_output)} bytes")
-        return pdf_buffer
-    except Exception as e2:
-        logger.error(f"PDF attempt 2 failed: {e2}")
-        logger.error(traceback.format_exc())
-    
-    # ATTEMPT 3: Minimal but still branded PDF
-    try:
-        logger.info("PDF attempt 3: Minimal branded")
-        pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
-        
-        # Header branding even in minimal mode
-        pdf.set_fill_color(217, 119, 6)
-        pdf.rect(10, 10, 4, 10, 'F')
-        pdf.set_xy(18, 10)
+        # Simple header
         pdf.set_font('Helvetica', 'B', 16)
-        pdf.set_text_color(15, 23, 42)
-        pdf.cell(40, 10, 'tooley')
-        pdf.set_xy(150, 12)
-        pdf.set_font('Helvetica', '', 9)
-        pdf.set_text_color(100, 100, 100)
-        pdf.cell(50, 8, 'tooley.app', align='R')
-        pdf.ln(16)
-        
-        # Content
+        pdf.cell(0, 10, 'Tooley Lesson Plan', ln=True)
         pdf.set_font('Helvetica', '', 10)
-        pdf.set_text_color(15, 23, 42)
-        pdf.multi_cell(0, 5, ascii_only(content))
+        pdf.ln(5)
         
-        # Footer
-        pdf.set_y(-15)
-        pdf.set_font('Helvetica', '', 8)
-        pdf.set_text_color(128, 128, 128)
-        pdf.cell(0, 5, 'Generated by Tooley | tooley.app | Free for all teachers', align='C')
+        # Safe content
+        safe_content = content.replace('**', '')
+        for char in ['→', '←', '•', '–', '—', '"', '"', ''', ''', '…', '✓', '✗', '★', '☆', '●', '○']:
+            safe_content = safe_content.replace(char, '-')
+        safe_content = ''.join(c if ord(c) < 128 else '' for c in safe_content)
         
-        pdf_buffer = BytesIO()
-        pdf_buffer.write(pdf.output())
-        pdf_buffer.seek(0)
-        logger.info("PDF attempt 3 success")
-        return pdf_buffer
-    except Exception as e3:
-        logger.error(f"PDF attempt 3 failed: {e3}")
-        logger.error(traceback.format_exc())
+        for line in safe_content.split('\n'):
+            line = line.strip()
+            if line:
+                try:
+                    pdf.multi_cell(0, 5, line[:500])
+                except:
+                    pass
+            else:
+                pdf.ln(3)
+        
+        buffer = BytesIO()
+        pdf.output(buffer)
+        buffer.seek(0)
+        data = buffer.getvalue()
+        logger.info(f"PDF (simple) created: {len(data)} bytes")
+        if len(data) > 500:
+            return data
+    except Exception as e:
+        logger.error(f"PDF attempt 2 failed: {e}")
+    
+    # Attempt 3: Minimal with branding
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        
+        # Amber bar + logo
+        pdf.set_fill_color(217, 119, 6)
+        pdf.rect(10, 10, 4, 14, 'F')
+        pdf.set_xy(18, 10)
+        pdf.set_font('Helvetica', 'B', 22)
+        pdf.set_text_color(217, 119, 6)
+        pdf.cell(40, 14, 'tooley', align='L')
+        pdf.set_xy(150, 14)
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_text_color(100, 116, 139)
+        pdf.cell(50, 10, 'tooley.app', align='R')
+        pdf.ln(25)
+        
+        pdf.set_font('Helvetica', '', 10)
+        pdf.set_text_color(0, 0, 0)
+        
+        ascii_content = ''.join(c if ord(c) < 128 else ' ' for c in content)
+        ascii_content = ascii_content.replace('**', '')
+        
+        for line in ascii_content.split('\n')[:200]:
+            line = line.strip()[:200]
+            if line:
+                try:
+                    pdf.multi_cell(0, 5, line)
+                except:
+                    pass
+            pdf.ln(2)
+        
+        buffer = BytesIO()
+        pdf.output(buffer)
+        buffer.seek(0)
+        return buffer.getvalue()
+    except Exception as e:
+        logger.error(f"PDF attempt 3 failed: {e}")
         return None
 
 
@@ -617,7 +798,7 @@ def generate_lesson_filename(params):
 # HTML GENERATION
 # ============================================================================
 
-def create_lesson_html(content, params):
+def create_lesson_html(content, params, lang="en"):
     specs_html = ""
     if params.get('subject'):
         specs_html += f"<div class='spec'><span class='label'>Subject:</span> {params['subject']}</div>"
@@ -687,8 +868,10 @@ def create_lesson_html(content, params):
     if in_list:
         content_html += "</ul>"
     
+    footer_text = t('pdf_footer', lang)
+    
     html = f'''<!DOCTYPE html>
-<html lang="en">
+<html lang="{lang}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -723,14 +906,14 @@ def create_lesson_html(content, params):
         <span class="tagline"><a href="https://tooley.app">tooley.app</a></span>
     </div>
     <div class="specs-box">
-        <div class="specs-title">Lesson Specifications</div>
+        <div class="specs-title">{t('pdf_specs_title', lang)}</div>
         {specs_html}
     </div>
     <div class="content">
         {content_html}
     </div>
     <div class="footer">
-        Generated by <strong>Tooley</strong> | <a href="https://tooley.app">tooley.app</a> | Free for all teachers
+        Generated by <strong>Tooley</strong> | <a href="https://tooley.app">tooley.app</a> | {footer_text}
     </div>
 </body>
 </html>'''
@@ -741,20 +924,21 @@ def create_lesson_html(content, params):
 # HELPERS
 # ============================================================================
 
-def build_selection_summary(params):
-    lines = ["━━━━ *Your Lesson* ━━━━"]
-    if params.get('subject'): lines.append(f"📚 Subject: {params['subject']}")
-    if params.get('topic'): lines.append(f"📝 Topic: {params['topic']}")
-    if params.get('ages'): lines.append(f"🧒🏽 Ages: {params['ages']}")
-    if params.get('duration'): lines.append(f"⏱ Duration: {params['duration']} min")
-    if params.get('country'): lines.append(f"📍 Location: {params['country']}")
+def build_selection_summary(params, lang="en"):
+    lines = [t('summary_header', lang)]
+    if params.get('subject'): lines.append(f"{t('lbl_subject', lang)}: {params['subject']}")
+    if params.get('topic'): lines.append(f"{t('lbl_topic', lang)}: {params['topic']}")
+    if params.get('ages'): lines.append(f"{t('lbl_ages', lang)}: {params['ages']}")
+    if params.get('duration'): lines.append(f"{t('lbl_duration', lang)}: {params['duration']} {t('min', lang)}")
+    if params.get('country'): lines.append(f"{t('lbl_location', lang)}: {params['country']}")
     if params.get('materials'):
-        m = {'none': '🎭 No materials', 'basic': '📝 Basic supplies', 'standard': '📦 Full classroom'}
-        lines.append(f"📦 Materials: {m.get(params['materials'], params['materials'])}")
+        m = {'none': t('mat_none', lang), 'basic': t('mat_basic', lang), 'standard': t('mat_standard', lang)}
+        lines.append(f"{t('lbl_materials', lang)}: {m.get(params['materials'], params['materials'])}")
     if params.get('style'):
-        s = {'interactive': '🎮 Interactive', 'structured': '📋 Structured', 'storytelling': '📖 Story-based', 'mixed': '⚖️ Mixed'}
-        lines.append(f"🎯 Style: {s.get(params['style'], params['style'])}")
-    lines.append("━━━━━━━━━━━━━━━━━━")
+        s = {'interactive': t('style_interactive', lang), 'structured': t('style_structured', lang),
+             'storytelling': t('style_storytelling', lang), 'mixed': t('style_mixed', lang)}
+        lines.append(f"{t('lbl_style', lang)}: {s.get(params['style'], params['style'])}")
+    lines.append(t('summary_footer', lang))
     return "\n".join(lines)
 
 
@@ -799,21 +983,21 @@ async def save_lesson_to_github(lesson):
             
             if get_response.status_code == 200:
                 file_data = get_response.json()
-                sha = file_data["sha"]
-                existing_content = base64.b64decode(file_data["content"]).decode("utf-8")
-                data = json.loads(existing_content)
-                lessons = data.get("lessons", [])
+                existing = json.loads(base64.b64decode(file_data['content']).decode('utf-8'))
+                sha = file_data['sha']
             else:
+                existing = {"lessons": []}
                 sha = None
-                lessons = []
             
-            lessons.insert(0, lesson)
-            lessons = lessons[:500]
+            existing["lessons"].insert(0, lesson)
+            existing["lessons"] = existing["lessons"][:100]
             
-            new_data = {"lastUpdated": datetime.utcnow().isoformat() + "Z", "lessons": lessons}
-            encoded_content = base64.b64encode(json.dumps(new_data, indent=2).encode("utf-8")).decode("utf-8")
+            new_content = base64.b64encode(json.dumps(existing, indent=2).encode('utf-8')).decode('utf-8')
             
-            body = {"message": f"Add lesson: {lesson.get('topic', 'New')}", "content": encoded_content}
+            body = {
+                "message": f"Add lesson: {lesson['topic']}",
+                "content": new_content,
+            }
             if sha:
                 body["sha"] = sha
             
@@ -822,31 +1006,38 @@ async def save_lesson_to_github(lesson):
                 headers={"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"},
                 json=body
             )
-            put_response.raise_for_status()
-            logger.info(f"Lesson {lesson['id']} saved to GitHub")
-            return True
+            
+            if put_response.status_code in [200, 201]:
+                logger.info(f"Saved to GitHub: {lesson['topic']}")
+                return True
+            else:
+                logger.error(f"GitHub save failed: {put_response.text[:200]}")
+                return False
+    
     except Exception as e:
-        logger.error(f"Error saving lesson: {e}")
+        logger.error(f"GitHub error: {e}")
         return False
 
 
 async def push_lesson_to_website(lesson):
-    """Push lesson to website repo for carousel display."""
-    if not GITHUB_TOKEN:
-        logger.warning("Website push skipped: GITHUB_TOKEN not set")
+    if not GITHUB_TOKEN or not GITHUB_WEBSITE_REPO:
+        logger.info("Website repo not configured")
         return False
-    
-    if not GITHUB_WEBSITE_REPO:
-        logger.warning("Website push skipped: GITHUB_WEBSITE_REPO not set")
-        return False
-    
-    logger.info(f"Pushing to website: {GITHUB_WEBSITE_REPO}")
     
     try:
+        carousel_lesson = {
+            "id": lesson["id"],
+            "subject": lesson["subject"],
+            "topic": lesson["topic"],
+            "ages": lesson["ages"],
+            "duration": lesson["duration"],
+            "country": lesson["country"],
+            "teacher": lesson.get("teacher_name", "Anonymous"),
+            "created": lesson["created"],
+        }
+        
         async with httpx.AsyncClient(timeout=30.0) as client:
             get_url = f"https://api.github.com/repos/{GITHUB_WEBSITE_REPO}/contents/lessons.json"
-            logger.info(f"GET {get_url}")
-            
             get_response = await client.get(
                 get_url,
                 headers={"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
@@ -856,47 +1047,25 @@ async def push_lesson_to_website(lesson):
             
             if get_response.status_code == 200:
                 file_data = get_response.json()
-                sha = file_data["sha"]
-                existing_content = base64.b64decode(file_data["content"]).decode("utf-8")
-                data = json.loads(existing_content)
-                lessons = data.get("lessons", [])
-                logger.info(f"Found {len(lessons)} existing lessons")
-            elif get_response.status_code == 404:
-                logger.info("lessons.json not found, creating new")
-                sha = None
-                lessons = []
+                existing = json.loads(base64.b64decode(file_data['content']).decode('utf-8'))
+                sha = file_data['sha']
             else:
-                logger.error(f"Unexpected GET response: {get_response.status_code}")
-                return False
+                existing = {"lessons": []}
+                sha = None
             
-            carousel_lesson = {
-                "id": lesson.get("id", generate_lesson_id()),
-                "subject": lesson.get("subject", "General"),
-                "topic": lesson.get("topic", "Untitled"),
-                "ages": lesson.get("ages", "All ages"),
-                "duration": str(lesson.get("duration", 45)),
-                "country": lesson.get("country", "Global"),
-                "teacher_name": lesson.get("teacher_name", "Anonymous"),
-                "public": True,
-                "created_at": datetime.utcnow().isoformat() + "Z"
-            }
+            existing["lessons"].insert(0, carousel_lesson)
+            existing["lessons"] = existing["lessons"][:20]
             
-            lessons.insert(0, carousel_lesson)
-            lessons = lessons[:50]
-            
-            website_data = {"lastUpdated": datetime.utcnow().isoformat() + "Z", "lessons": lessons}
-            encoded_content = base64.b64encode(json.dumps(website_data, indent=2).encode("utf-8")).decode("utf-8")
+            new_content = base64.b64encode(json.dumps(existing, indent=2).encode('utf-8')).decode('utf-8')
             
             body = {
-                "message": f"🎓 New lesson: {lesson.get('topic', 'Untitled')}",
-                "content": encoded_content
+                "message": f"Add lesson: {carousel_lesson['topic']}",
+                "content": new_content,
             }
             if sha:
                 body["sha"] = sha
             
             put_url = f"https://api.github.com/repos/{GITHUB_WEBSITE_REPO}/contents/lessons.json"
-            logger.info(f"PUT {put_url}")
-            
             put_response = await client.put(
                 put_url,
                 headers={"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"},
@@ -925,108 +1094,103 @@ async def push_lesson_to_website(lesson):
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     reset_session(user_id)
+    session = get_session(user_id)
+    
     logger.info(f"START from user {user_id}")
     
+    # If no language set, ask for language first
+    if session.get('lang') is None:
+        session['state'] = 'awaiting_language'
+        keyboard = [
+            [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
+            [InlineKeyboardButton("🇪🇸 Español", callback_data="lang_es")],
+        ]
+        await update.message.reply_text(
+            "🌐 *Choose your language / Elige tu idioma:*",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        return
+    
+    # Language already set, show main menu
+    lang = get_lang(user_id)
     keyboard = [
-        [InlineKeyboardButton("⚡ Quick Lesson", callback_data="action_quick")],
-        [InlineKeyboardButton("✨ Custom Lesson", callback_data="action_new")],
-        [InlineKeyboardButton("❓ Help & Tips", callback_data="action_help")],
+        [InlineKeyboardButton(t('quick_lesson', lang), callback_data="action_quick")],
+        [InlineKeyboardButton(t('custom_lesson', lang), callback_data="action_new")],
+        [InlineKeyboardButton(t('help_tips', lang), callback_data="action_help")],
+        [InlineKeyboardButton(t('change_language', lang), callback_data="action_language")],
     ]
     
     await update.message.reply_text(
-        "👋 *Welcome to Tooley!*\n\nI create lesson plans for teachers around the world.\n\nWhat would you like to do?",
+        t('welcome', lang),
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode='Markdown'
+    )
+
+
+async def language_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Change language anytime with /language"""
+    user_id = update.effective_user.id
+    session = get_session(user_id)
+    session['state'] = 'awaiting_language'
+    
+    keyboard = [
+        [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
+        [InlineKeyboardButton("🇪🇸 Español", callback_data="lang_es")],
+    ]
+    await update.message.reply_text(
+        "🌐 *Choose your language / Elige tu idioma:*",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
     )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "*Tooley Help*\n\n"
-        "/start - Main menu\n"
-        "/lesson - Start new lesson\n"
-        "/subjects - See available subjects\n"
-        "/about - About Tooley\n"
-        "/feedback - Send us feedback\n"
-        "/help - This help\n\n"
-        "*Formats:*\n"
-        "📱 Chat = read in Telegram\n"
-        "📄 PDF = download for printing\n"
-        "🌐 HTML = opens in browser",
-        parse_mode='Markdown'
-    )
+    user_id = update.effective_user.id
+    lang = get_lang(user_id)
+    await update.message.reply_text(t('help_command', lang), parse_mode='Markdown')
 
 
 async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📚 *About Tooley*\n\n"
-        "Tooley is a free AI-powered lesson plan generator built for teachers in low-resource schools.\n\n"
-        "🎯 *Our Mission*\n"
-        "Every teacher deserves quality lesson plans, regardless of resources or location.\n\n"
-        "✨ *Features*\n"
-        "• Create complete lesson plans in minutes\n"
-        "• Curriculum-aligned content\n"
-        "• Multiple subjects supported\n"
-        "• Download as PDF for offline use\n"
-        "• Always free\n\n"
-        "🌍 *Community*\n"
-        "Join thousands of teachers worldwide using Tooley.\n\n"
-        "💛 Built with love for teachers everywhere.\n\n"
-        "🔗 tooley.app",
-        parse_mode='Markdown'
-    )
+    user_id = update.effective_user.id
+    lang = get_lang(user_id)
+    await update.message.reply_text(t('about', lang), parse_mode='Markdown')
 
 
 async def subjects_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "📚 *Available Subjects*\n\n"
-        "📐 *Mathematics* - Numbers, geometry, algebra, problem-solving\n\n"
-        "🔬 *Science* - Biology, physics, chemistry, nature\n\n"
-        "📖 *Reading* - Comprehension, phonics, literature\n\n"
-        "✏️ *Language Arts* - Writing, grammar, vocabulary\n\n"
-        "🌍 *Social Studies* - History, geography, civics\n\n"
-        "🎨 *Art & Music* - Creative expression, crafts\n\n"
-        "📝 *Other* - Any custom topic you need!\n\n"
-        "Ready? Use /lesson to create a plan!",
-        parse_mode='Markdown'
-    )
+    user_id = update.effective_user.id
+    lang = get_lang(user_id)
+    await update.message.reply_text(t('subjects_list', lang), parse_mode='Markdown')
 
 
 async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     session = get_session(user_id)
+    lang = get_lang(user_id)
     session['state'] = 'awaiting_feedback'
     
-    await update.message.reply_text(
-        "💬 *We'd love your feedback!*\n\n"
-        "Tell us:\n"
-        "• What's working well?\n"
-        "• What could be better?\n"
-        "• What features would you like?\n\n"
-        "Just type your message and send it.\n\n"
-        "_Your feedback helps us improve Tooley for teachers everywhere._",
-        parse_mode='Markdown'
-    )
+    await update.message.reply_text(t('feedback_prompt', lang), parse_mode='Markdown')
 
 
 async def lesson_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     reset_session(user_id)
     session = get_session(user_id)
+    lang = get_lang(user_id)
     session['state'] = 'awaiting_subject'
     
     keyboard = [
-        [InlineKeyboardButton("📐 Mathematics", callback_data="subject_Mathematics")],
-        [InlineKeyboardButton("🔬 Science", callback_data="subject_Science")],
-        [InlineKeyboardButton("📖 Reading", callback_data="subject_Reading")],
-        [InlineKeyboardButton("✏️ Language Arts", callback_data="subject_Language")],
-        [InlineKeyboardButton("🌍 Social Studies", callback_data="subject_Social Studies")],
-        [InlineKeyboardButton("🎨 Art & Music", callback_data="subject_Art")],
-        [InlineKeyboardButton("📝 Other Topic...", callback_data="subject_other")],
+        [InlineKeyboardButton(t('subj_mathematics', lang), callback_data="subject_Mathematics")],
+        [InlineKeyboardButton(t('subj_science', lang), callback_data="subject_Science")],
+        [InlineKeyboardButton(t('subj_reading', lang), callback_data="subject_Reading")],
+        [InlineKeyboardButton(t('subj_language', lang), callback_data="subject_Language")],
+        [InlineKeyboardButton(t('subj_social', lang), callback_data="subject_Social Studies")],
+        [InlineKeyboardButton(t('subj_art', lang), callback_data="subject_Art")],
+        [InlineKeyboardButton(t('subj_other', lang), callback_data="subject_other")],
     ]
     
     await update.message.reply_text(
-        "📚 *Let's create a lesson!*\n\nWhat subject?",
+        t('subject_prompt', lang),
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode='Markdown'
     )
@@ -1043,52 +1207,92 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     user_id = update.effective_user.id
     session = get_session(user_id)
+    lang = get_lang(user_id)
     
-    logger.info(f"=== CALLBACK: '{data}' from user {user_id} ===")
+    logger.info(f"=== CALLBACK: '{data}' from user {user_id} (lang={lang}) ===")
     
-    # ACTION BUTTONS
+    # LANGUAGE SELECTION
+    if data.startswith("lang_"):
+        selected_lang = data.replace("lang_", "")
+        session['lang'] = selected_lang
+        session['state'] = 'idle'
+        lang = selected_lang
+        
+        keyboard = [
+            [InlineKeyboardButton(t('quick_lesson', lang), callback_data="action_quick")],
+            [InlineKeyboardButton(t('custom_lesson', lang), callback_data="action_new")],
+            [InlineKeyboardButton(t('help_tips', lang), callback_data="action_help")],
+            [InlineKeyboardButton(t('change_language', lang), callback_data="action_language")],
+        ]
+        
+        await query.edit_message_text(
+            f"{t('lang_changed', lang)}\n\n{t('welcome_back', lang)}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        return
+    
+    # ACTION: Change language
+    if data == "action_language":
+        session['state'] = 'awaiting_language'
+        keyboard = [
+            [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
+            [InlineKeyboardButton("🇪🇸 Español", callback_data="lang_es")],
+        ]
+        await query.edit_message_text(
+            "🌐 *Choose your language / Elige tu idioma:*",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
+        return
+    
+    # ACTION: Quick Lesson
     if data == "action_quick":
         logger.info(f">>> action_quick")
         keyboard = [
-            [InlineKeyboardButton("📐 Mathematics", callback_data="quick_Mathematics")],
-            [InlineKeyboardButton("🔬 Science", callback_data="quick_Science")],
-            [InlineKeyboardButton("📖 Reading", callback_data="quick_Reading")],
-            [InlineKeyboardButton("✏️ Language Arts", callback_data="quick_Language")],
-            [InlineKeyboardButton("🌍 Social Studies", callback_data="quick_Social Studies")],
-            [InlineKeyboardButton("🎨 Art & Music", callback_data="quick_Art")],
+            [InlineKeyboardButton(t('subj_mathematics', lang), callback_data="quick_Mathematics")],
+            [InlineKeyboardButton(t('subj_science', lang), callback_data="quick_Science")],
+            [InlineKeyboardButton(t('subj_reading', lang), callback_data="quick_Reading")],
+            [InlineKeyboardButton(t('subj_language', lang), callback_data="quick_Language")],
+            [InlineKeyboardButton(t('subj_social', lang), callback_data="quick_Social Studies")],
+            [InlineKeyboardButton(t('subj_art', lang), callback_data="quick_Art")],
         ]
         await query.edit_message_text(
-            "⚡ *Quick Lesson*\n\nPick a subject and I'll generate instantly!\n_Smart defaults: Ages 9-11, 30 min, basic materials_",
+            t('quick_title', lang),
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
         return
     
+    # ACTION: Help
     if data == "action_help":
         logger.info(f">>> action_help")
-        keyboard = [[InlineKeyboardButton("← Back", callback_data="action_menu")]]
+        keyboard = [[InlineKeyboardButton(t('back', lang), callback_data="action_menu")]]
         await query.edit_message_text(
-            "*Tooley Help*\n\n⚡ *Quick* — Pick subject, I handle the rest\n✨ *Custom* — Full control\n\n*Formats:*\n📱 Chat = read here\n📄 PDF = print\n🌐 HTML = browser\n\n*Sharing:* Your lessons appear on tooley.app!",
+            t('help_text', lang),
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
         return
     
+    # ACTION: Menu
     if data == "action_menu":
         logger.info(f">>> action_menu")
         reset_session(user_id)
         keyboard = [
-            [InlineKeyboardButton("⚡ Quick Lesson", callback_data="action_quick")],
-            [InlineKeyboardButton("✨ Custom Lesson", callback_data="action_new")],
-            [InlineKeyboardButton("❓ Help & Tips", callback_data="action_help")],
+            [InlineKeyboardButton(t('quick_lesson', lang), callback_data="action_quick")],
+            [InlineKeyboardButton(t('custom_lesson', lang), callback_data="action_new")],
+            [InlineKeyboardButton(t('help_tips', lang), callback_data="action_help")],
+            [InlineKeyboardButton(t('change_language', lang), callback_data="action_language")],
         ]
         await query.edit_message_text(
-            "👋 *Welcome to Tooley!*\n\nWhat would you like to do?",
+            t('welcome_back', lang),
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
         return
     
+    # ACTION: New custom lesson
     if data == "action_new":
         logger.info(f">>> action_new")
         reset_session(user_id)
@@ -1096,188 +1300,124 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session['state'] = 'awaiting_subject'
         
         keyboard = [
-            [InlineKeyboardButton("📐 Mathematics", callback_data="subject_Mathematics")],
-            [InlineKeyboardButton("🔬 Science", callback_data="subject_Science")],
-            [InlineKeyboardButton("📖 Reading", callback_data="subject_Reading")],
-            [InlineKeyboardButton("✏️ Language Arts", callback_data="subject_Language")],
-            [InlineKeyboardButton("🌍 Social Studies", callback_data="subject_Social Studies")],
-            [InlineKeyboardButton("🎨 Art & Music", callback_data="subject_Art")],
-            [InlineKeyboardButton("📝 Other Topic...", callback_data="subject_other")],
+            [InlineKeyboardButton(t('subj_mathematics', lang), callback_data="subject_Mathematics")],
+            [InlineKeyboardButton(t('subj_science', lang), callback_data="subject_Science")],
+            [InlineKeyboardButton(t('subj_reading', lang), callback_data="subject_Reading")],
+            [InlineKeyboardButton(t('subj_language', lang), callback_data="subject_Language")],
+            [InlineKeyboardButton(t('subj_social', lang), callback_data="subject_Social Studies")],
+            [InlineKeyboardButton(t('subj_art', lang), callback_data="subject_Art")],
+            [InlineKeyboardButton(t('subj_other', lang), callback_data="subject_other")],
         ]
         await query.edit_message_text(
-            "📚 *Custom Lesson*\n\nWhat subject?",
+            t('subject_prompt', lang),
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
         return
     
-    # QUICK LESSON
+    # QUICK LESSON - generate immediately
     if data.startswith("quick_"):
         subject = data.replace("quick_", "")
-        logger.info(f">>> quick_{subject}")
+        logger.info(f">>> quick lesson: {subject}")
+        
+        topics = get_random_topics(subject, 1)
+        topic = topics[0] if topics else "Introduction"
         
         session['params'] = {
-            'subject': subject, 'ages': '9-11', 'duration': '30',
-            'country': 'Global', 'materials': 'basic', 'style': 'mixed'
+            'subject': subject,
+            'topic': topic,
+            'ages': '9-11',
+            'duration': '30',
+            'country': 'Global',
+            'materials': 'basic',
+            'style': 'mixed'
         }
-        topics = TOPICS_BY_SUBJECT.get(subject, ["General lesson"])
-        session['params']['topic'] = random.choice(topics)
         
-        summary = build_selection_summary(session['params'])
-        await query.edit_message_text(f"{summary}\n\n⏳ *Generating...*", parse_mode='Markdown')
+        await query.edit_message_text(t('generating', lang), parse_mode='Markdown')
         
         try:
-            lesson_content = generate_lesson(session['params'])
+            lesson_content = generate_lesson(session['params'], lang)
             session['last_lesson'] = lesson_content
-            session['state'] = 'lesson_generated'
             
-            specs = build_selection_summary(session['params'])
-            full_text = f"{specs}\n\n{lesson_content}"
+            # Send chat message
+            await context.bot.send_message(chat_id=user_id, text=lesson_content[:4000])
             
-            if len(full_text) < 4000:
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=full_text, parse_mode='Markdown')
-            else:
-                await context.bot.send_message(chat_id=update.effective_chat.id, text=specs, parse_mode='Markdown')
-                for chunk in [lesson_content[i:i+4000] for i in range(0, len(lesson_content), 4000)]:
-                    await context.bot.send_message(chat_id=update.effective_chat.id, text=chunk)
+            # Send PDF
+            pdf_data = create_lesson_pdf(lesson_content, session['params'], lang)
+            if pdf_data:
+                filename = generate_lesson_filename(session['params'])
+                pdf_buffer = BytesIO(pdf_data)
+                pdf_buffer.seek(0)
+                await context.bot.send_document(
+                    chat_id=user_id,
+                    document=InputFile(pdf_buffer, filename=f"{filename}.pdf"),
+                    caption="📄 PDF"
+                )
             
-            try:
-                pdf_buffer = create_lesson_pdf(lesson_content, session['params'])
-                if pdf_buffer:
-                    filename = generate_lesson_filename(session['params']) + '.pdf'
-                    await context.bot.send_document(chat_id=update.effective_chat.id, document=InputFile(pdf_buffer, filename=filename), caption="📄 *PDF ready*", parse_mode='Markdown')
-            except Exception as e:
-                logger.error(f"PDF error: {e}")
-                logger.error(traceback.format_exc())
+            # Send HTML
+            html_content = create_lesson_html(lesson_content, session['params'], lang)
+            html_buffer = BytesIO(html_content.encode('utf-8'))
+            html_buffer.seek(0)
+            filename = generate_lesson_filename(session['params'])
+            await context.bot.send_document(
+                chat_id=user_id,
+                document=InputFile(html_buffer, filename=f"{filename}.html"),
+                caption="🌐 HTML"
+            )
             
-            # Also send HTML for quick lesson
-            try:
-                html_content = create_lesson_html(lesson_content, session['params'])
-                html_buffer = BytesIO(html_content.encode('utf-8'))
-                html_buffer.seek(0)
-                filename = generate_lesson_filename(session['params']) + '.html'
-                await context.bot.send_document(chat_id=update.effective_chat.id, document=InputFile(html_buffer, filename=filename), caption="🌐 *HTML ready*", parse_mode='Markdown')
-            except Exception as e:
-                logger.error(f"HTML error: {e}")
-                logger.error(traceback.format_exc())
-            
+            # Share prompt
             keyboard = [
-                [InlineKeyboardButton("🌍 Share", callback_data="share_yes"),
-                 InlineKeyboardButton("🔒 Private", callback_data="share_no")],
+                [InlineKeyboardButton(t('share_yes', lang), callback_data="share_yes"),
+                 InlineKeyboardButton(t('share_no', lang), callback_data="share_no")],
             ]
-            await context.bot.send_message(chat_id=update.effective_chat.id, text="Share with other teachers?", reply_markup=InlineKeyboardMarkup(keyboard))
-        
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=t('share_prompt', lang),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
         except Exception as e:
             logger.error(f"Quick lesson error: {e}")
-            await context.bot.send_message(chat_id=update.effective_chat.id, text="❌ Error. Please try again.")
-        return
-    
-    # FORMAT SELECTION
-    if data.startswith("format_"):
-        output_format = data.replace("format_", "")
-        logger.info(f">>> format_{output_format}")
-        
-        summary = build_selection_summary(session['params'])
-        await query.edit_message_text(f"{summary}\n\n⏳ *Generating...*", parse_mode='Markdown')
-        
-        try:
-            lesson_content = generate_lesson(session['params'])
-            session['last_lesson'] = lesson_content
-            session['state'] = 'lesson_generated'
-            
-            specs = build_selection_summary(session['params'])
-            
-            # Chat output
-            if output_format in ['chat', 'chatpdf', 'chathtml']:
-                full_text = f"{specs}\n\n{lesson_content}"
-                if len(full_text) < 4000:
-                    await context.bot.send_message(chat_id=update.effective_chat.id, text=full_text, parse_mode='Markdown')
-                else:
-                    await context.bot.send_message(chat_id=update.effective_chat.id, text=specs, parse_mode='Markdown')
-                    for chunk in [lesson_content[i:i+4000] for i in range(0, len(lesson_content), 4000)]:
-                        await context.bot.send_message(chat_id=update.effective_chat.id, text=chunk)
-            
-            # PDF output
-            if output_format in ['pdf', 'chatpdf']:
-                try:
-                    pdf_buffer = create_lesson_pdf(lesson_content, session['params'])
-                    if pdf_buffer:
-                        filename = generate_lesson_filename(session['params']) + '.pdf'
-                        await context.bot.send_document(chat_id=update.effective_chat.id, document=InputFile(pdf_buffer, filename=filename), caption=f"📄 *PDF ready*", parse_mode='Markdown')
-                    else:
-                        await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ _PDF issue, content above._", parse_mode='Markdown')
-                except Exception as e:
-                    logger.error(f"PDF send error: {e}")
-                    logger.error(traceback.format_exc())
-                    await context.bot.send_message(chat_id=update.effective_chat.id, text="⚠️ _PDF issue, content above._", parse_mode='Markdown')
-            
-            # HTML output
-            if output_format in ['html', 'chathtml']:
-                try:
-                    html_content = create_lesson_html(lesson_content, session['params'])
-                    html_buffer = BytesIO(html_content.encode('utf-8'))
-                    html_buffer.seek(0)
-                    filename = generate_lesson_filename(session['params']) + '.html'
-                    await context.bot.send_document(chat_id=update.effective_chat.id, document=InputFile(html_buffer, filename=filename), caption=f"🌐 *HTML ready*", parse_mode='Markdown')
-                except Exception as e:
-                    logger.error(f"HTML error: {e}")
-                    logger.error(traceback.format_exc())
-            
-            keyboard = [
-                [InlineKeyboardButton("🌍 Share", callback_data="share_yes"),
-                 InlineKeyboardButton("🔒 Private", callback_data="share_no")],
-            ]
-            await context.bot.send_message(chat_id=update.effective_chat.id, text="Share with other teachers?", reply_markup=InlineKeyboardMarkup(keyboard))
-        
-        except Exception as e:
-            logger.error(f"Generation error: {e}")
             logger.error(traceback.format_exc())
-            await context.bot.send_message(chat_id=update.effective_chat.id, text="❌ Error. Please try again.")
+            await context.bot.send_message(chat_id=user_id, text=t('generation_error', lang))
         return
     
     # SUBJECT SELECTION
     if data.startswith("subject_"):
         subject = data.replace("subject_", "")
-        logger.info(f">>> subject_{subject}")
         
         if subject == "other":
             session['state'] = 'awaiting_subject_text'
-            await query.edit_message_text("Type the subject:")
+            await query.edit_message_text(t('subject_other_prompt', lang))
             return
         
         session['params']['subject'] = subject
         session['state'] = 'awaiting_topic'
         
         topics = get_random_topics(subject, 6)
-        keyboard = []
-        for i in range(0, len(topics), 2):
-            row = [InlineKeyboardButton(topics[i][:20], callback_data=f"topic_{topics[i][:25]}")]
-            if i + 1 < len(topics):
-                row.append(InlineKeyboardButton(topics[i+1][:20], callback_data=f"topic_{topics[i+1][:25]}"))
-            keyboard.append(row)
-        keyboard.append([InlineKeyboardButton("🎲 Random", callback_data="topic_random")])
-        keyboard.append([InlineKeyboardButton("✏️ Type own", callback_data="topic_custom")])
+        keyboard = [[InlineKeyboardButton(topic, callback_data=f"topic_{topic}")] for topic in topics]
+        keyboard.append([InlineKeyboardButton(t('topic_custom', lang), callback_data="topic_custom")])
         
-        summary = build_selection_summary(session['params'])
-        await query.edit_message_text(f"{summary}\n\nChoose a topic:", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        summary = build_selection_summary(session['params'], lang)
+        await query.edit_message_text(
+            f"{summary}\n\n{t('topic_prompt', lang)}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
         return
     
     # TOPIC SELECTION
     if data.startswith("topic_"):
-        topic_action = data.replace("topic_", "")
-        logger.info(f">>> topic_{topic_action}")
+        topic = data.replace("topic_", "")
         
-        if topic_action == "random":
-            topics = TOPICS_BY_SUBJECT.get(session['params'].get('subject', 'General'), ["General"])
-            session['params']['topic'] = random.choice(topics)
-        elif topic_action == "custom":
+        if topic == "custom":
             session['state'] = 'awaiting_topic_text'
-            await query.edit_message_text("Type your topic:")
+            await query.edit_message_text(t('topic_type_prompt', lang))
             return
-        else:
-            session['params']['topic'] = topic_action
         
+        session['params']['topic'] = topic
         session['state'] = 'awaiting_ages'
+        
         keyboard = [
             [InlineKeyboardButton("5-7", callback_data="ages_5-7"),
              InlineKeyboardButton("7-9", callback_data="ages_7-9"),
@@ -1286,67 +1426,88 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("13-15", callback_data="ages_13-15"),
              InlineKeyboardButton("15+", callback_data="ages_15-18")],
         ]
-        summary = build_selection_summary(session['params'])
-        await query.edit_message_text(f"{summary}\n\n🧒🏽 Age group?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        summary = build_selection_summary(session['params'], lang)
+        await query.edit_message_text(
+            f"{summary}\n\n{t('ages_prompt', lang)}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
         return
     
-    # AGES
+    # AGES → DURATION
     if data.startswith("ages_"):
         session['params']['ages'] = data.replace("ages_", "")
         session['state'] = 'awaiting_duration'
         keyboard = [
-            [InlineKeyboardButton("15m", callback_data="duration_15"),
-             InlineKeyboardButton("30m", callback_data="duration_30"),
-             InlineKeyboardButton("45m", callback_data="duration_45")],
-            [InlineKeyboardButton("60m", callback_data="duration_60"),
-             InlineKeyboardButton("90m", callback_data="duration_90")],
+            [InlineKeyboardButton(f"15 {t('min', lang)}", callback_data="dur_15"),
+             InlineKeyboardButton(f"30 {t('min', lang)}", callback_data="dur_30")],
+            [InlineKeyboardButton(f"45 {t('min', lang)}", callback_data="dur_45"),
+             InlineKeyboardButton(f"60 {t('min', lang)}", callback_data="dur_60")],
         ]
-        summary = build_selection_summary(session['params'])
-        await query.edit_message_text(f"{summary}\n\n⏱ Duration?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        summary = build_selection_summary(session['params'], lang)
+        await query.edit_message_text(
+            f"{summary}\n\n{t('duration_prompt', lang)}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
         return
     
-    # DURATION
-    if data.startswith("duration_"):
-        session['params']['duration'] = data.replace("duration_", "")
+    # DURATION → COUNTRY
+    if data.startswith("dur_"):
+        session['params']['duration'] = data.replace("dur_", "")
         session['state'] = 'awaiting_country'
-        keyboard = []
-        for i in range(0, len(COUNTRIES), 3):
+        
+        countries = get_countries(lang)
+        keyboard = [[InlineKeyboardButton(t('country_global', lang), callback_data="country_Global")]]
+        for i in range(0, len(countries), 2):
             row = []
-            for j in range(3):
-                if i + j < len(COUNTRIES):
-                    flag, name = COUNTRIES[i + j]
+            for j in range(2):
+                if i + j < len(countries):
+                    flag, name = countries[i + j]
                     row.append(InlineKeyboardButton(f"{flag} {name}", callback_data=f"country_{name}"))
             keyboard.append(row)
-        keyboard.append([InlineKeyboardButton("🌍 Global", callback_data="country_Global")])
-        summary = build_selection_summary(session['params'])
-        await query.edit_message_text(f"{summary}\n\n📍 Location?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        
+        summary = build_selection_summary(session['params'], lang)
+        await query.edit_message_text(
+            f"{summary}\n\n{t('country_prompt', lang)}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
         return
     
-    # COUNTRY
+    # COUNTRY → MATERIALS
     if data.startswith("country_"):
         session['params']['country'] = data.replace("country_", "")
         session['state'] = 'awaiting_materials'
         keyboard = [
-            [InlineKeyboardButton("🎭 None", callback_data="materials_none")],
-            [InlineKeyboardButton("📝 Basic", callback_data="materials_basic")],
-            [InlineKeyboardButton("📦 Full", callback_data="materials_standard")],
+            [InlineKeyboardButton(t('mat_none', lang), callback_data="mat_none")],
+            [InlineKeyboardButton(t('mat_basic', lang), callback_data="mat_basic")],
+            [InlineKeyboardButton(t('mat_standard', lang), callback_data="mat_standard")],
         ]
-        summary = build_selection_summary(session['params'])
-        await query.edit_message_text(f"{summary}\n\n📦 Materials?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        summary = build_selection_summary(session['params'], lang)
+        await query.edit_message_text(
+            f"{summary}\n\n{t('materials_prompt', lang)}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
         return
     
-    # MATERIALS
-    if data.startswith("materials_"):
-        session['params']['materials'] = data.replace("materials_", "")
+    # MATERIALS → STYLE
+    if data.startswith("mat_"):
+        session['params']['materials'] = data.replace("mat_", "")
         session['state'] = 'awaiting_style'
         keyboard = [
-            [InlineKeyboardButton("🎮 Interactive", callback_data="style_interactive")],
-            [InlineKeyboardButton("📋 Structured", callback_data="style_structured")],
-            [InlineKeyboardButton("📖 Story-based", callback_data="style_storytelling")],
-            [InlineKeyboardButton("⚖️ Mixed", callback_data="style_mixed")],
+            [InlineKeyboardButton(t('style_interactive', lang), callback_data="style_interactive")],
+            [InlineKeyboardButton(t('style_structured', lang), callback_data="style_structured")],
+            [InlineKeyboardButton(t('style_storytelling', lang), callback_data="style_storytelling")],
+            [InlineKeyboardButton(t('style_mixed', lang), callback_data="style_mixed")],
         ]
-        summary = build_selection_summary(session['params'])
-        await query.edit_message_text(f"{summary}\n\n🎯 Style?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        summary = build_selection_summary(session['params'], lang)
+        await query.edit_message_text(
+            f"{summary}\n\n{t('style_prompt', lang)}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
         return
     
     # STYLE → FORMAT
@@ -1354,20 +1515,74 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session['params']['style'] = data.replace("style_", "")
         session['state'] = 'awaiting_format'
         
-        # v2.10.1 - Fixed format buttons
         keyboard = [
-            [InlineKeyboardButton("📱 Chat only", callback_data="format_chat")],
-            [InlineKeyboardButton("📄 PDF only", callback_data="format_pdf"),
-             InlineKeyboardButton("🌐 HTML only", callback_data="format_html")],
-            [InlineKeyboardButton("📱+📄 Chat+PDF", callback_data="format_chatpdf"),
-             InlineKeyboardButton("📱+🌐 Chat+HTML", callback_data="format_chathtml")],
+            [InlineKeyboardButton(t('fmt_chat', lang), callback_data="format_chat")],
+            [InlineKeyboardButton(t('fmt_pdf', lang), callback_data="format_pdf"),
+             InlineKeyboardButton(t('fmt_html', lang), callback_data="format_html")],
+            [InlineKeyboardButton(t('fmt_chatpdf', lang), callback_data="format_chatpdf"),
+             InlineKeyboardButton(t('fmt_chathtml', lang), callback_data="format_chathtml")],
         ]
-        summary = build_selection_summary(session['params'])
+        summary = build_selection_summary(session['params'], lang)
         await query.edit_message_text(
-            f"{summary}\n\n📲 *Choose format:*\n• _Chat_ = read here\n• _PDF_ = print\n• _HTML_ = browser",
+            f"{summary}\n\n{t('format_prompt', lang)}",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
+        return
+    
+    # FORMAT SELECTION → GENERATE
+    if data.startswith("format_"):
+        format_choice = data.replace("format_", "")
+        logger.info(f">>> format: {format_choice}")
+        
+        await query.edit_message_text(t('generating', lang), parse_mode='Markdown')
+        
+        try:
+            lesson_content = generate_lesson(session['params'], lang)
+            session['last_lesson'] = lesson_content
+            
+            # Send based on format
+            if format_choice in ['chat', 'chatpdf', 'chathtml']:
+                await context.bot.send_message(chat_id=user_id, text=lesson_content[:4000])
+            
+            if format_choice in ['pdf', 'chatpdf']:
+                pdf_data = create_lesson_pdf(lesson_content, session['params'], lang)
+                if pdf_data:
+                    filename = generate_lesson_filename(session['params'])
+                    pdf_buffer = BytesIO(pdf_data)
+                    pdf_buffer.seek(0)
+                    await context.bot.send_document(
+                        chat_id=user_id,
+                        document=InputFile(pdf_buffer, filename=f"{filename}.pdf"),
+                        caption="📄 PDF"
+                    )
+            
+            if format_choice in ['html', 'chathtml']:
+                html_content = create_lesson_html(lesson_content, session['params'], lang)
+                html_buffer = BytesIO(html_content.encode('utf-8'))
+                html_buffer.seek(0)
+                filename = generate_lesson_filename(session['params'])
+                await context.bot.send_document(
+                    chat_id=user_id,
+                    document=InputFile(html_buffer, filename=f"{filename}.html"),
+                    caption="🌐 HTML"
+                )
+            
+            # Share prompt
+            keyboard = [
+                [InlineKeyboardButton(t('share_yes', lang), callback_data="share_yes"),
+                 InlineKeyboardButton(t('share_no', lang), callback_data="share_no")],
+            ]
+            await context.bot.send_message(
+                chat_id=user_id,
+                text=t('share_prompt', lang),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
+        except Exception as e:
+            logger.error(f"Generation error: {e}")
+            logger.error(traceback.format_exc())
+            await context.bot.send_message(chat_id=user_id, text=t('generation_error', lang))
         return
     
     # SHARING
@@ -1375,7 +1590,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f">>> share_yes")
         session['pending_share'] = True
         session['state'] = 'awaiting_teacher_name'
-        await query.edit_message_text("🌍 *Thank you!*\n\nYour name? (or 'skip' for anonymous)", parse_mode='Markdown')
+        await query.edit_message_text(t('share_name_prompt', lang), parse_mode='Markdown')
         return
     
     if data == "share_no":
@@ -1385,10 +1600,13 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await save_lesson_to_github(lesson_record)
         
         keyboard = [
-            [InlineKeyboardButton("✨ New lesson", callback_data="action_new")],
-            [InlineKeyboardButton("🏠 Menu", callback_data="action_menu")],
+            [InlineKeyboardButton(t('new_lesson', lang), callback_data="action_new")],
+            [InlineKeyboardButton(t('menu', lang), callback_data="action_menu")],
         ]
-        await query.edit_message_text("👍 Saved privately.\n\nWhat's next?", reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.edit_message_text(
+            t('saved_private', lang),
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
         return
     
     logger.warning(f"Unknown callback: {data}")
@@ -1401,6 +1619,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     session = get_session(user_id)
+    lang = get_lang(user_id)
     text = update.message.text.strip()
     state = session.get('state', 'idle')
     
@@ -1415,14 +1634,12 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"FEEDBACK from {name} (@{username}): {text}")
         
         keyboard = [
-            [InlineKeyboardButton("✨ Create a lesson", callback_data="action_new")],
-            [InlineKeyboardButton("🏠 Menu", callback_data="action_menu")],
+            [InlineKeyboardButton(t('new_lesson', lang), callback_data="action_new")],
+            [InlineKeyboardButton(t('menu', lang), callback_data="action_menu")],
         ]
         
         await update.message.reply_text(
-            "🙏 *Thank you for your feedback!*\n\n"
-            "Your input helps us make Tooley better for teachers everywhere.\n\n"
-            "What would you like to do next?",
+            t('feedback_thanks', lang),
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
@@ -1438,14 +1655,22 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         website_pushed = await push_lesson_to_website(lesson_record)
         
         keyboard = [
-            [InlineKeyboardButton("✨ New lesson", callback_data="action_new")],
-            [InlineKeyboardButton("🏠 Menu", callback_data="action_menu")],
+            [InlineKeyboardButton(t('new_lesson', lang), callback_data="action_new")],
+            [InlineKeyboardButton(t('menu', lang), callback_data="action_menu")],
         ]
         
         if website_pushed:
-            await update.message.reply_text("🎉 *Shared!*\n\n📍 Live on tooley.app!\n\nWhat's next?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            await update.message.reply_text(
+                t('share_success', lang),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
         else:
-            await update.message.reply_text("🎉 *Shared!*\n\nWhat's next?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            await update.message.reply_text(
+                t('share_success_basic', lang),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode='Markdown'
+            )
         
         session['state'] = 'idle'
         return
@@ -1454,11 +1679,14 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session['params']['subject'] = text
         session['state'] = 'awaiting_topic'
         keyboard = [
-            [InlineKeyboardButton("🎲 Random", callback_data="topic_random")],
-            [InlineKeyboardButton("✏️ Type own", callback_data="topic_custom")],
+            [InlineKeyboardButton(t('topic_custom', lang), callback_data="topic_custom")],
         ]
-        summary = build_selection_summary(session['params'])
-        await update.message.reply_text(f"{summary}\n\nTopic for {text}?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        summary = build_selection_summary(session['params'], lang)
+        await update.message.reply_text(
+            f"{summary}\n\n{t('topic_prompt', lang)}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
         return
     
     if state == 'awaiting_topic_text':
@@ -1472,11 +1700,15 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
              InlineKeyboardButton("13-15", callback_data="ages_13-15"),
              InlineKeyboardButton("15+", callback_data="ages_15-18")],
         ]
-        summary = build_selection_summary(session['params'])
-        await update.message.reply_text(f"{summary}\n\n🧒🏽 Age group?", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        summary = build_selection_summary(session['params'], lang)
+        await update.message.reply_text(
+            f"{summary}\n\n{t('ages_prompt', lang)}",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='Markdown'
+        )
         return
     
-    await update.message.reply_text("Use /start to begin!")
+    await update.message.reply_text(t('use_start', lang))
 
 
 # ============================================================================
@@ -1484,28 +1716,34 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================================
 
 async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    lang = get_lang(user_id)
+    
     if not groq_client:
-        await update.message.reply_text("Voice not configured. Please type.")
+        await update.message.reply_text(t('voice_not_configured', lang))
         return
     
     voice_file = await context.bot.get_file(update.message.voice.file_id)
     voice_data = await voice_file.download_as_bytearray()
     
     try:
+        # Use Spanish transcription if user's language is Spanish
+        transcription_lang = "es" if lang == "es" else "en"
+        
         transcription = groq_client.audio.transcriptions.create(
             file=("voice.ogg", bytes(voice_data)),
             model="whisper-large-v3",
-            language="en"
+            language=transcription_lang
         )
         text = transcription.text.strip()
         if text:
             update.message.text = text
             await text_handler(update, context)
         else:
-            await update.message.reply_text("Couldn't hear clearly. Try again?")
+            await update.message.reply_text(t('voice_unclear', lang))
     except Exception as e:
         logger.error(f"Voice error: {e}")
-        await update.message.reply_text("Voice error. Please type.")
+        await update.message.reply_text(t('voice_error', lang))
 
 
 # ============================================================================
@@ -1526,6 +1764,7 @@ def main():
     application.add_handler(CommandHandler("about", about_command))
     application.add_handler(CommandHandler("subjects", subjects_command))
     application.add_handler(CommandHandler("feedback", feedback_command))
+    application.add_handler(CommandHandler("language", language_command))
     application.add_handler(CallbackQueryHandler(callback_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_handler))
     application.add_handler(MessageHandler(filters.VOICE, voice_handler))
