@@ -321,7 +321,7 @@ TRANSLATIONS = {
     }
 }
 
-# Country names in both languages
+# Country names - different lists per language
 COUNTRIES_TRANSLATED = {
     "en": [
         ("🇮🇳", "India"), ("🇵🇰", "Pakistan"), ("🇳🇬", "Nigeria"),
@@ -331,11 +331,11 @@ COUNTRIES_TRANSLATED = {
         ("🇺🇸", "United States"), ("🇬🇧", "United Kingdom"), ("🇦🇺", "Australia"),
     ],
     "es": [
-        ("🇮🇳", "India"), ("🇵🇰", "Pakistán"), ("🇳🇬", "Nigeria"),
-        ("🇧🇩", "Bangladesh"), ("🇵🇭", "Filipinas"), ("🇰🇪", "Kenia"),
-        ("🇺🇬", "Uganda"), ("🇬🇭", "Ghana"), ("🇹🇿", "Tanzania"),
-        ("🇿🇦", "Sudáfrica"), ("🇷🇼", "Ruanda"), ("🇯🇲", "Jamaica"),
-        ("🇺🇸", "Estados Unidos"), ("🇬🇧", "Reino Unido"), ("🇦🇺", "Australia"),
+        ("🇲🇽", "México"), ("🇪🇸", "España"), ("🇦🇷", "Argentina"),
+        ("🇨🇴", "Colombia"), ("🇵🇪", "Perú"), ("🇨🇱", "Chile"),
+        ("🇪🇨", "Ecuador"), ("🇬🇹", "Guatemala"), ("🇨🇺", "Cuba"),
+        ("🇧🇴", "Bolivia"), ("🇩🇴", "República Dominicana"), ("🇭🇳", "Honduras"),
+        ("🇵🇾", "Paraguay"), ("🇳🇮", "Nicaragua"), ("🇺🇸", "Estados Unidos"),
     ]
 }
 
@@ -352,54 +352,96 @@ def get_countries(lang="en"):
 # ============================================================================
 
 TOPIC_POOLS = {
-    "Mathematics": {
-        "Numbers": ["Addition", "Subtraction", "Multiplication", "Division", "Place value", "Rounding", "Comparing numbers"],
-        "Fractions": ["Introduction to fractions", "Equivalent fractions", "Adding fractions", "Decimals"],
-        "Geometry": ["Shapes", "Perimeter", "Area", "Symmetry", "Angles"],
-        "Measurement": ["Time", "Length", "Weight", "Money"],
+    "en": {
+        "Mathematics": {
+            "Numbers": ["Addition", "Subtraction", "Multiplication", "Division", "Place value", "Rounding", "Comparing numbers"],
+            "Fractions": ["Introduction to fractions", "Equivalent fractions", "Adding fractions", "Decimals"],
+            "Geometry": ["Shapes", "Perimeter", "Area", "Symmetry", "Angles"],
+            "Measurement": ["Time", "Length", "Weight", "Money"],
+        },
+        "Science": {
+            "Life Science": ["Plants", "Animals", "Habitats", "Food chains", "Human body"],
+            "Physical Science": ["States of matter", "Magnets", "Light", "Sound", "Simple machines"],
+            "Earth Science": ["Weather", "Water cycle", "Rocks", "Solar system"],
+        },
+        "Language": {
+            "Grammar": ["Nouns", "Verbs", "Adjectives", "Sentences", "Punctuation"],
+            "Writing": ["Paragraphs", "Stories", "Letters", "Descriptions"],
+            "Vocabulary": ["Word families", "Synonyms", "Prefixes", "Spelling patterns"],
+        },
+        "Reading": {
+            "Comprehension": ["Main idea", "Story elements", "Making predictions", "Cause and effect"],
+            "Phonics": ["Letter sounds", "Blending", "Sight words"],
+            "Literature": ["Fables", "Poetry", "Character analysis"],
+        },
+        "Social Studies": {
+            "Community": ["Community helpers", "Maps", "Rules and laws"],
+            "History": ["Historical figures", "Timelines", "Traditions"],
+            "Geography": ["Continents", "Countries", "Landforms"],
+            "Global": ["Cultural diversity", "Sustainable living", "Global connections"],
+        },
+        "Art": {
+            "Drawing": ["Lines and shapes", "Portraits", "Sketching"],
+            "Painting": ["Color mixing", "Watercolors", "Abstract art"],
+            "Crafts": ["Paper crafts", "Collage", "Recycled art"],
+        }
     },
-    "Science": {
-        "Life Science": ["Plants", "Animals", "Habitats", "Food chains", "Human body"],
-        "Physical Science": ["States of matter", "Magnets", "Light", "Sound", "Simple machines"],
-        "Earth Science": ["Weather", "Water cycle", "Rocks", "Solar system"],
-    },
-    "Language": {
-        "Grammar": ["Nouns", "Verbs", "Adjectives", "Sentences", "Punctuation"],
-        "Writing": ["Paragraphs", "Stories", "Letters", "Descriptions"],
-        "Vocabulary": ["Word families", "Synonyms", "Prefixes", "Spelling patterns"],
-    },
-    "Reading": {
-        "Comprehension": ["Main idea", "Story elements", "Making predictions", "Cause and effect"],
-        "Phonics": ["Letter sounds", "Blending", "Sight words"],
-        "Literature": ["Fables", "Poetry", "Character analysis"],
-    },
-    "Social Studies": {
-        "Community": ["Community helpers", "Maps", "Rules and laws"],
-        "History": ["Historical figures", "Timelines", "Traditions"],
-        "Geography": ["Continents", "Countries", "Landforms"],
-        "Global": ["Cultural diversity", "Sustainable living", "Global connections"],
-    },
-    "Art": {
-        "Drawing": ["Lines and shapes", "Portraits", "Sketching"],
-        "Painting": ["Color mixing", "Watercolors", "Abstract art"],
-        "Crafts": ["Paper crafts", "Collage", "Recycled art"],
+    "es": {
+        "Mathematics": {
+            "Números": ["Suma", "Resta", "Multiplicación", "División", "Valor posicional", "Redondeo", "Comparar números"],
+            "Fracciones": ["Introducción a fracciones", "Fracciones equivalentes", "Suma de fracciones", "Decimales"],
+            "Geometría": ["Figuras", "Perímetro", "Área", "Simetría", "Ángulos"],
+            "Medición": ["Tiempo", "Longitud", "Peso", "Dinero"],
+        },
+        "Science": {
+            "Ciencias de la vida": ["Plantas", "Animales", "Hábitats", "Cadenas alimenticias", "Cuerpo humano"],
+            "Ciencias físicas": ["Estados de la materia", "Imanes", "Luz", "Sonido", "Máquinas simples"],
+            "Ciencias de la Tierra": ["Clima", "Ciclo del agua", "Rocas", "Sistema solar"],
+        },
+        "Language": {
+            "Gramática": ["Sustantivos", "Verbos", "Adjetivos", "Oraciones", "Puntuación"],
+            "Escritura": ["Párrafos", "Cuentos", "Cartas", "Descripciones"],
+            "Vocabulario": ["Familias de palabras", "Sinónimos", "Prefijos", "Ortografía"],
+        },
+        "Reading": {
+            "Comprensión": ["Idea principal", "Elementos del cuento", "Hacer predicciones", "Causa y efecto"],
+            "Fonética": ["Sonidos de letras", "Combinación de sonidos", "Palabras frecuentes"],
+            "Literatura": ["Fábulas", "Poesía", "Análisis de personajes"],
+        },
+        "Social Studies": {
+            "Comunidad": ["Servidores públicos", "Mapas", "Reglas y leyes"],
+            "Historia": ["Figuras históricas", "Líneas de tiempo", "Tradiciones"],
+            "Geografía": ["Continentes", "Países", "Formas del terreno"],
+            "Global": ["Diversidad cultural", "Vida sostenible", "Conexiones globales"],
+        },
+        "Art": {
+            "Dibujo": ["Líneas y figuras", "Retratos", "Bocetos"],
+            "Pintura": ["Mezcla de colores", "Acuarelas", "Arte abstracto"],
+            "Manualidades": ["Manualidades de papel", "Collage", "Arte reciclado"],
+        }
     }
 }
 
-TOPICS_BY_SUBJECT = {}
-for subject, categories in TOPIC_POOLS.items():
-    all_topics = []
-    for cat_topics in categories.values():
-        all_topics.extend(cat_topics)
-    TOPICS_BY_SUBJECT[subject] = all_topics
+def get_topics_by_subject(lang="en"):
+    """Build flat topic list per subject for a language"""
+    pools = TOPIC_POOLS.get(lang, TOPIC_POOLS["en"])
+    result = {}
+    for subject, categories in pools.items():
+        all_topics = []
+        for cat_topics in categories.values():
+            all_topics.extend(cat_topics)
+        result[subject] = all_topics
+    return result
 
 
-def get_topic_categories(subject):
-    return TOPIC_POOLS.get(subject, {})
+def get_topic_categories(subject, lang="en"):
+    pools = TOPIC_POOLS.get(lang, TOPIC_POOLS["en"])
+    return pools.get(subject, {})
 
 
-def get_random_topics(subject, count=8):
-    all_topics = TOPICS_BY_SUBJECT.get(subject, [])
+def get_random_topics(subject, count=8, lang="en"):
+    topics_by_subject = get_topics_by_subject(lang)
+    all_topics = topics_by_subject.get(subject, [])
     if len(all_topics) <= count:
         return all_topics
     return random.sample(all_topics, count)
@@ -799,23 +841,44 @@ def generate_lesson_filename(params):
 # ============================================================================
 
 def create_lesson_html(content, params, lang="en"):
+    # Translated labels
+    labels = {
+        "en": {"subject": "Subject", "topic": "Topic", "ages": "Ages", "duration": "Duration", 
+               "location": "Location", "materials": "Materials", "style": "Style", "minutes": "minutes"},
+        "es": {"subject": "Materia", "topic": "Tema", "ages": "Edades", "duration": "Duración",
+               "location": "Ubicación", "materials": "Materiales", "style": "Estilo", "minutes": "minutos"}
+    }
+    lbl = labels.get(lang, labels["en"])
+    
+    # Materials translations
+    mat_trans = {
+        "en": {'none': 'No materials', 'basic': 'Basic supplies', 'standard': 'Full classroom'},
+        "es": {'none': 'Sin materiales', 'basic': 'Materiales básicos', 'standard': 'Aula completa'}
+    }
+    mat = mat_trans.get(lang, mat_trans["en"])
+    
+    # Style translations
+    style_trans = {
+        "en": {'interactive': 'Interactive', 'structured': 'Structured', 'storytelling': 'Story-based', 'mixed': 'Mixed'},
+        "es": {'interactive': 'Interactivo', 'structured': 'Estructurado', 'storytelling': 'Narrativo', 'mixed': 'Mixto'}
+    }
+    sty = style_trans.get(lang, style_trans["en"])
+    
     specs_html = ""
     if params.get('subject'):
-        specs_html += f"<div class='spec'><span class='label'>Subject:</span> {params['subject']}</div>"
+        specs_html += f"<div class='spec'><span class='label'>{lbl['subject']}:</span> {params['subject']}</div>"
     if params.get('topic'):
-        specs_html += f"<div class='spec'><span class='label'>Topic:</span> {params['topic']}</div>"
+        specs_html += f"<div class='spec'><span class='label'>{lbl['topic']}:</span> {params['topic']}</div>"
     if params.get('ages'):
-        specs_html += f"<div class='spec'><span class='label'>Ages:</span> {params['ages']}</div>"
+        specs_html += f"<div class='spec'><span class='label'>{lbl['ages']}:</span> {params['ages']}</div>"
     if params.get('duration'):
-        specs_html += f"<div class='spec'><span class='label'>Duration:</span> {params['duration']} minutes</div>"
+        specs_html += f"<div class='spec'><span class='label'>{lbl['duration']}:</span> {params['duration']} {lbl['minutes']}</div>"
     if params.get('country'):
-        specs_html += f"<div class='spec'><span class='label'>Location:</span> {params['country']}</div>"
+        specs_html += f"<div class='spec'><span class='label'>{lbl['location']}:</span> {params['country']}</div>"
     if params.get('materials'):
-        m = {'none': 'No materials', 'basic': 'Basic supplies', 'standard': 'Full classroom'}
-        specs_html += f"<div class='spec'><span class='label'>Materials:</span> {m.get(params['materials'], params['materials'])}</div>"
+        specs_html += f"<div class='spec'><span class='label'>{lbl['materials']}:</span> {mat.get(params['materials'], params['materials'])}</div>"
     if params.get('style'):
-        s = {'interactive': 'Interactive', 'structured': 'Structured', 'storytelling': 'Story-based', 'mixed': 'Mixed'}
-        specs_html += f"<div class='spec'><span class='label'>Style:</span> {s.get(params['style'], params['style'])}</div>"
+        specs_html += f"<div class='spec'><span class='label'>{lbl['style']}:</span> {sty.get(params['style'], params['style'])}</div>"
     
     content_html = ""
     in_list = False
@@ -1320,7 +1383,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         subject = data.replace("quick_", "")
         logger.info(f">>> quick lesson: {subject}")
         
-        topics = get_random_topics(subject, 1)
+        topics = get_random_topics(subject, 1, lang)
         topic = topics[0] if topics else "Introduction"
         
         session['params'] = {
@@ -1394,7 +1457,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         session['params']['subject'] = subject
         session['state'] = 'awaiting_topic'
         
-        topics = get_random_topics(subject, 6)
+        topics = get_random_topics(subject, 6, lang)
         keyboard = [[InlineKeyboardButton(topic, callback_data=f"topic_{topic}")] for topic in topics]
         keyboard.append([InlineKeyboardButton(t('topic_custom', lang), callback_data="topic_custom")])
         
