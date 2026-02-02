@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<!--
+    TOOLEY WEB APP - app-es.html (Spanish)
+    Version: 1.4.0-es
+    Updated: 2026-02-02
+    
+    Features: Share button, Spanish UI
+    Works with Railway API
+-->
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tooley - Crear una Lección</title>
+    <meta name="description" content="Generador gratuito de planes de lección con IA. Crea planes completos en minutos.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/lipis/flag-icons@7.0.0/css/flag-icons.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --amber: #f59e0b;
+            --amber-dark: #d97706;
+            --amber-darker: #b45309;
+            --amber-light: #fbbf24;
+            --amber-pale: #fef3c7;
+            --amber-bg: #fffbeb;
+            --navy: #0f172a;
+            --navy-light: #1e293b;
+            --slate: #334155;
+            --slate-light: #64748b;
+            --white: #ffffff;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-200: #e2e8f0;
+            --gray-300: #cbd5e1;
+            --success: #10b981;
+            --success-bg: #d1fae5;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--gray-50);
+            color: var(--navy);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        header {
+            background: var(--white);
+            border-bottom: 1px solid var(--gray-200);
+            padding: 12px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .header-inner {
+            max-width: 600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--amber-dark);
+            text-decoration: none;
+        }
+        
+        .header-back {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--slate-light);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        
+        .header-back:hover { color: var(--amber-dark); }
+        .header-back svg { width: 16px; height: 16px; }
+        
+        .app-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px 16px 80px;
+        }
+        
+        .progress-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+        }
+        
+        .progress-step {
+            flex: 1;
+            height: 3px;
+            background: var(--gray-200);
+            border-radius: 2px;
+            transition: background 0.3s;
+        }
+        
+        .progress-step.active { background: var(--amber); }
+        .progress-step.completed { background: var(--amber-dark); }
+        
+        .step {
+            display: none;
+            animation: fadeIn 0.25s ease;
+        }
+        
+        .step.active { display: block; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .step-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .step-icon {
+            width: 44px;
+            height: 44px;
+            background: var(--amber-pale);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin: 0 auto 12px;
+        }
+        
+        .step-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--navy);
+            margin-bottom: 4px;
+        }
+        
+        .step-subtitle {
+            color: var(--slate-light);
+            font-size: 14px;
+        }
+        
+        .options-grid {
+            display: grid;
+            gap: 8px;
+        }
+        
+        .option-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: left;
+        }
+        
+        .option-btn:hover {
+            border-color: var(--amber);
+            border-width: 2px;
+            padding: 11.5px 13.5px;
+        }
+        
+        .option-btn.selected {
+            border-color: var(--amber-dark);
+            border-width: 2px;
+            padding: 11.5px 13.5px;
+            background: var(--amber-pale);
+        }
+        
+        .option-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--gray-100);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        
+        .option-btn.selected .option-icon { background: var(--amber); }
+        
+        .option-text { flex: 1; min-width: 0; }
+        
+        .option-label {
+            font-weight: 600;
+            color: var(--navy);
+            font-size: 14px;
+        }
+        
+        .option-desc {
+            font-size: 12px;
+            color: var(--slate-light);
+        }
+        
+        .compact-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+        }
+        
+        .compact-btn {
+            padding: 10px 18px;
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--navy);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        
+        .compact-btn:hover {
+            border-color: var(--amber);
+            border-width: 2px;
+            padding: 9.5px 17.5px;
+        }
+        
+        .compact-btn.selected {
+            border-color: var(--amber-dark);
+            border-width: 2px;
+            padding: 9.5px 17.5px;
+            background: var(--amber-pale);
+            color: var(--amber-darker);
+        }
+        
+        .topic-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .topic-chip {
+            padding: 8px 14px;
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--slate);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        
+        .topic-chip:hover {
+            border-color: var(--amber);
+            border-width: 2px;
+            padding: 7.5px 13.5px;
+            color: var(--amber-darker);
+        }
+        
+        .custom-topic-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--gray-200);
+        }
+        
+        .custom-topic-label {
+            font-size: 13px;
+            color: var(--slate-light);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        
+        .text-input-row {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .text-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1.5px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        
+        .text-input:focus {
+            outline: none;
+            border-color: var(--amber);
+        }
+        
+        .text-input::placeholder { color: var(--gray-300); }
+        
+        .input-go-btn {
+            padding: 10px 16px;
+            background: var(--amber);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        
+        .input-go-btn:hover { background: var(--amber-dark); }
+        .input-go-btn:disabled { background: var(--gray-300); cursor: not-allowed; }
+        
+        .country-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .country-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 8px;
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--navy);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        
+        .country-btn:hover {
+            border-color: var(--amber);
+            border-width: 2px;
+            padding: 9.5px 7.5px;
+        }
+        
+        .country-btn.selected {
+            border-color: var(--amber-dark);
+            border-width: 2px;
+            padding: 9.5px 7.5px;
+            background: var(--amber-pale);
+        }
+        
+        .country-btn .fi { font-size: 14px; }
+        
+        .step-nav {
+            display: flex;
+            gap: 10px;
+            margin-top: 24px;
+        }
+        
+        .nav-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        
+        .nav-btn svg { width: 16px; height: 16px; }
+        
+        .nav-btn.secondary {
+            background: var(--white);
+            color: var(--slate);
+            border: 1.5px solid var(--gray-200);
+        }
+        
+        .nav-btn.secondary:hover {
+            border-color: var(--gray-300);
+            background: var(--gray-50);
+        }
+        
+        .nav-btn.primary {
+            background: var(--amber);
+            color: var(--white);
+            border: none;
+        }
+        
+        .nav-btn.primary:hover { background: var(--amber-dark); }
+        .nav-btn.primary:disabled { background: var(--gray-300); cursor: not-allowed; }
+        
+        .back-only { justify-content: flex-start; }
+        .back-only .nav-btn { flex: 0; }
+        
+        .summary-card {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        
+        .summary-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .summary-icon { font-size: 14px; margin-top: 2px; }
+        
+        .summary-label {
+            font-size: 11px;
+            color: var(--slate-light);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .summary-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--navy);
+        }
+        
+        .loading-container {
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--gray-200);
+            border-top-color: var(--amber);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .loading-text { font-size: 15px; color: var(--slate); }
+        .loading-subtext { font-size: 13px; color: var(--slate-light); margin-top: 6px; }
+        
+        .error-container {
+            background: #fef2f2;
+            border: 1.5px solid #fecaca;
+            border-radius: 12px;
+            padding: 28px 20px;
+            text-align: center;
+        }
+        
+        .error-icon { font-size: 36px; margin-bottom: 12px; }
+        .error-title { font-size: 16px; font-weight: 600; color: #991b1b; margin-bottom: 6px; }
+        .error-text { font-size: 13px; color: #dc2626; margin-bottom: 16px; }
+        
+        .result-header { margin-bottom: 16px; }
+        
+        .result-title {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--navy);
+        }
+        
+        .result-meta { font-size: 13px; color: var(--slate-light); margin-top: 4px; }
+        
+        .result-content {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .result-content h2 {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--amber-dark);
+            margin: 16px 0 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--amber-pale);
+        }
+        
+        .result-content h2:first-child { margin-top: 0; }
+        .result-content p { font-size: 13px; margin-bottom: 10px; }
+        .result-content ul, .result-content ol { font-size: 13px; margin: 8px 0 8px 20px; }
+        .result-content li { margin-bottom: 4px; }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            flex: 1;
+            min-width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: var(--white);
+            color: var(--amber-dark);
+            border: 1.5px solid var(--amber);
+        }
+        
+        .action-btn:hover {
+            background: var(--amber-pale);
+            border-color: var(--amber-dark);
+        }
+        
+        .action-btn svg { width: 16px; height: 16px; }
+        
+        .action-btn.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        
+        .action-btn.share-btn {
+            background: var(--amber);
+            color: white;
+            border-color: var(--amber);
+        }
+        
+        .action-btn.share-btn:hover {
+            background: var(--amber-dark);
+            border-color: var(--amber-dark);
+        }
+        
+        .action-btn.share-btn.shared {
+            background: var(--success);
+            border-color: var(--success);
+            pointer-events: none;
+        }
+        
+        .success-message {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px;
+            background: var(--success-bg);
+            color: var(--success);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            margin-top: 12px;
+        }
+        
+        .start-over {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--gray-200);
+        }
+        
+        .mode-card {
+            background: var(--white);
+            border: 1.5px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-bottom: 10px;
+        }
+        
+        .mode-card:hover {
+            border-color: var(--amber);
+            border-width: 2px;
+            padding: 15.5px;
+        }
+        
+        .mode-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        
+        .mode-icon { font-size: 20px; }
+        .mode-title { font-size: 15px; font-weight: 600; color: var(--navy); }
+        .mode-desc { font-size: 13px; color: var(--slate-light); }
+        
+        @media (max-width: 480px) {
+            .app-container { padding: 16px 12px 80px; }
+            .country-grid { grid-template-columns: repeat(2, 1fr); }
+            .summary-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-inner">
+            <a href="index-es.html" class="header-back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Volver
+            </a>
+            <a href="index-es.html" class="logo">tooley</a>
+            <div style="width: 50px;"></div>
+        </div>
+    </header>
+
+    <main class="app-container">
+        <div class="progress-bar" id="progressBar" style="display: none;">
+            <div class="progress-step"></div>
+            <div class="progress-step"></div>
+            <div class="progress-step"></div>
+            <div class="progress-step"></div>
+            <div class="progress-step"></div>
+            <div class="progress-step"></div>
+            <div class="progress-step"></div>
+        </div>
+
+        <!-- Step 0: Mode Selection -->
+        <div class="step active" id="step-0">
+            <div class="step-header">
+                <div class="step-icon">✨</div>
+                <h2 class="step-title">Crear un Plan de Lección</h2>
+                <p class="step-subtitle">Elige cómo quieres comenzar</p>
+            </div>
+            
+            <div class="mode-card" onclick="startQuick()">
+                <div class="mode-header">
+                    <span class="mode-icon">⚡</span>
+                    <span class="mode-title">Generación Rápida</span>
+                </div>
+                <p class="mode-desc">Elige una materia y crearemos una lección al instante.</p>
+            </div>
+            
+            <div class="mode-card" onclick="startCustom()">
+                <div class="mode-header">
+                    <span class="mode-icon">🎛️</span>
+                    <span class="mode-title">Lección Personalizada</span>
+                </div>
+                <p class="mode-desc">Control total sobre tema, grupo de edad, duración y estilo.</p>
+            </div>
+        </div>
+
+        <!-- Step 1: Subject -->
+        <div class="step" id="step-1">
+            <div class="step-header">
+                <div class="step-icon">📚</div>
+                <h2 class="step-title">Elige una materia</h2>
+            </div>
+            
+            <div class="options-grid">
+                <button class="option-btn" onclick="selectSubject('Matemáticas')">
+                    <div class="option-icon">📐</div>
+                    <div class="option-text">
+                        <div class="option-label">Matemáticas</div>
+                        <div class="option-desc">Números, figuras, lógica</div>
+                    </div>
+                </button>
+                <button class="option-btn" onclick="selectSubject('Ciencias')">
+                    <div class="option-icon">🔬</div>
+                    <div class="option-text">
+                        <div class="option-label">Ciencias</div>
+                        <div class="option-desc">Naturaleza, experimentos</div>
+                    </div>
+                </button>
+                <button class="option-btn" onclick="selectSubject('Lectura')">
+                    <div class="option-icon">📖</div>
+                    <div class="option-text">
+                        <div class="option-label">Lectura</div>
+                        <div class="option-desc">Comprensión, fonética</div>
+                    </div>
+                </button>
+                <button class="option-btn" onclick="selectSubject('Lenguaje')">
+                    <div class="option-icon">✏️</div>
+                    <div class="option-text">
+                        <div class="option-label">Lenguaje</div>
+                        <div class="option-desc">Escritura, gramática</div>
+                    </div>
+                </button>
+                <button class="option-btn" onclick="selectSubject('Estudios Sociales')">
+                    <div class="option-icon">🌍</div>
+                    <div class="option-text">
+                        <div class="option-label">Estudios Sociales</div>
+                        <div class="option-desc">Historia, geografía</div>
+                    </div>
+                </button>
+                <button class="option-btn" onclick="selectSubject('Arte')">
+                    <div class="option-icon">🎨</div>
+                    <div class="option-text">
+                        <div class="option-label">Arte y Música</div>
+                        <div class="option-desc">Expresión creativa</div>
+                    </div>
+                </button>
+            </div>
+            
+            <div class="step-nav back-only">
+                <button class="nav-btn secondary" onclick="showStep(0)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Atrás
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 2: Topic -->
+        <div class="step" id="step-2">
+            <div class="step-header">
+                <div class="step-icon">📝</div>
+                <h2 class="step-title">Elige un tema</h2>
+                <p class="step-subtitle">Toca uno o escribe el tuyo</p>
+            </div>
+            
+            <div class="topic-chips" id="topicSuggestions"></div>
+            
+            <div class="custom-topic-section">
+                <p class="custom-topic-label">O escribe el tuyo:</p>
+                <div class="text-input-row">
+                    <input type="text" class="text-input" id="topicInput" placeholder="ej., Fracciones, Ciclo del agua...">
+                    <button class="input-go-btn" id="topicGoBtn" onclick="submitCustomTopic()" disabled>Ir</button>
+                </div>
+            </div>
+            
+            <div class="step-nav back-only">
+                <button class="nav-btn secondary" onclick="prevStep()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Atrás
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: Ages -->
+        <div class="step" id="step-3">
+            <div class="step-header">
+                <div class="step-icon">👤</div>
+                <h2 class="step-title">¿Edades de los estudiantes?</h2>
+            </div>
+            
+            <div class="compact-options">
+                <button class="compact-btn" onclick="selectAges('5-7')">5-7 años</button>
+                <button class="compact-btn" onclick="selectAges('7-9')">7-9 años</button>
+                <button class="compact-btn" onclick="selectAges('9-11')">9-11 años</button>
+                <button class="compact-btn" onclick="selectAges('11-13')">11-13 años</button>
+                <button class="compact-btn" onclick="selectAges('13-15')">13-15 años</button>
+                <button class="compact-btn" onclick="selectAges('15-18')">15+ años</button>
+            </div>
+            
+            <div class="step-nav back-only">
+                <button class="nav-btn secondary" onclick="prevStep()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Atrás
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 4: Duration -->
+        <div class="step" id="step-4">
+            <div class="step-header">
+                <div class="step-icon">⏱️</div>
+                <h2 class="step-title">¿Duración de la lección?</h2>
+            </div>
+            
+            <div class="compact-options">
+                <button class="compact-btn" onclick="selectDuration('15')">15 min</button>
+                <button class="compact-btn" onclick="selectDuration('30')">30 min</button>
+                <button class="compact-btn" onclick="selectDuration('45')">45 min</button>
+                <button class="compact-btn" onclick="selectDuration('60')">60 min</button>
+                <button class="compact-btn" onclick="selectDuration('90')">90 min</button>
+            </div>
+            
+            <div class="step-nav back-only">
+                <button class="nav-btn secondary" onclick="prevStep()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Atrás
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 5: Country (Spanish-speaking countries) -->
+        <div class="step" id="step-5">
+            <div class="step-header">
+                <div class="step-icon">📍</div>
+                <h2 class="step-title">¿Dónde te encuentras?</h2>
+                <p class="step-subtitle">Para ejemplos locales</p>
+            </div>
+            
+            <div class="country-grid">
+                <button class="country-btn" onclick="selectCountry('México')"><span class="fi fi-mx"></span> México</button>
+                <button class="country-btn" onclick="selectCountry('España')"><span class="fi fi-es"></span> España</button>
+                <button class="country-btn" onclick="selectCountry('Argentina')"><span class="fi fi-ar"></span> Argentina</button>
+                <button class="country-btn" onclick="selectCountry('Colombia')"><span class="fi fi-co"></span> Colombia</button>
+                <button class="country-btn" onclick="selectCountry('Perú')"><span class="fi fi-pe"></span> Perú</button>
+                <button class="country-btn" onclick="selectCountry('Chile')"><span class="fi fi-cl"></span> Chile</button>
+                <button class="country-btn" onclick="selectCountry('Ecuador')"><span class="fi fi-ec"></span> Ecuador</button>
+                <button class="country-btn" onclick="selectCountry('Guatemala')"><span class="fi fi-gt"></span> Guatemala</button>
+                <button class="country-btn" onclick="selectCountry('Cuba')"><span class="fi fi-cu"></span> Cuba</button>
+                <button class="country-btn" onclick="selectCountry('Bolivia')"><span class="fi fi-bo"></span> Bolivia</button>
+                <button class="country-btn" onclick="selectCountry('Rep. Dominicana')"><span class="fi fi-do"></span> R. Dom.</button>
+                <button class="country-btn" onclick="selectCountry('Honduras')"><span class="fi fi-hn"></span> Honduras</button>
+                <button class="country-btn" onclick="selectCountry('Paraguay')"><span class="fi fi-py"></span> Paraguay</button>
+                <button class="country-btn" onclick="selectCountry('Nicaragua')"><span class="fi fi-ni"></span> Nicaragua</button>
+                <button class="country-btn" onclick="selectCountry('Estados Unidos')"><span class="fi fi-us"></span> EE.UU.</button>
+            </div>
+            
+            <div style="text-align: center; margin-top: 12px;">
+                <button class="compact-btn" onclick="selectCountry('Global')">🌍 Global</button>
+            </div>
+            
+            <div class="step-nav back-only">
+                <button class="nav-btn secondary" onclick="prevStep()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Atrás
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 6: Materials -->
+        <div class="step" id="step-6">
+            <div class="step-header">
+                <div class="step-icon">📦</div>
+                <h2 class="step-title">¿Materiales disponibles?</h2>
+            </div>
+            
+            <div class="options-grid">
+                <button class="option-btn" onclick="selectMaterials('none')">
+                    <div class="option-icon">✋</div>
+                    <div class="option-text">
+                        <div class="option-label">Sin materiales</div>
+                        <div class="option-desc">Solo voz y movimiento</div>
+                    </div>
+                </button>
+                <button class="option-btn" onclick="selectMaterials('basic')">
+                    <div class="option-icon">📝</div>
+                    <div class="option-text">
+                        <div class="option-label">Materiales básicos</div>
+                        <div class="option-desc">Papel, lápices, pizarra</div>
+                    </div>
+                </button>
+                <button class="option-btn" onclick="selectMaterials('standard')">
+                    <div class="option-icon">🎒</div>
+                    <div class="option-text">
+                        <div class="option-label">Aula completa</div>
+                        <div class="option-desc">Libros, carteles, útiles</div>
+                    </div>
+                </button>
+            </div>
+            
+            <div class="step-nav back-only">
+                <button class="nav-btn secondary" onclick="prevStep()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Atrás
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 7: Style -->
+        <div class="step" id="step-7">
+            <div class="step-header">
+                <div class="step-icon">🎯</div>
+                <h2 class="step-title">¿Estilo de enseñanza?</h2>
+            </div>
+            
+            <div class="options-grid">
+                <button class="option-btn" onclick="selectStyle('interactive')">
+                    <div class="option-icon">🎮</div>
+                    <div class="option-text">
+                        <div class="option-label">Interactivo</div>
+                        <div class="option-desc">Juegos, trabajo en grupo</div>
+                    </div>
+                </button>
+                <button class="option-btn" onclick="selectStyle('structured')">
+                    <div class="option-icon">📋</div>
+                    <div class="option-text">
+                        <div class="option-label">Estructurado</div>
+                        <div class="option-desc">Dirigido por el docente</div>
+                    </div>
+                </button>
+                <button class="option-btn" onclick="selectStyle('storytelling')">
+                    <div class="option-icon">📖</div>
+                    <div class="option-text">
+                        <div class="option-label">Narrativo</div>
+                        <div class="option-desc">Cuentos, personajes</div>
+                    </div>
+                </button>
+                <button class="option-btn" onclick="selectStyle('mixed')">
+                    <div class="option-icon">⚖️</div>
+                    <div class="option-text">
+                        <div class="option-label">Mixto</div>
+                        <div class="option-desc">Enfoque equilibrado</div>
+                    </div>
+                </button>
+            </div>
+            
+            <div class="step-nav back-only">
+                <button class="nav-btn secondary" onclick="prevStep()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Atrás
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 8: Summary -->
+        <div class="step" id="step-8">
+            <div class="step-header">
+                <div class="step-icon">✅</div>
+                <h2 class="step-title">¡Listo para generar!</h2>
+            </div>
+            
+            <div class="summary-card">
+                <div class="summary-grid" id="summaryGrid"></div>
+            </div>
+            
+            <div class="step-nav">
+                <button class="nav-btn secondary" onclick="prevStep()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Atrás
+                </button>
+                <button class="nav-btn primary" onclick="generateLesson()">
+                    Generar
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 9: Loading -->
+        <div class="step" id="step-9">
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <p class="loading-text">Creando tu plan de lección...</p>
+                <p class="loading-subtext">Esto toma unos 15-30 segundos</p>
+            </div>
+        </div>
+
+        <!-- Step 10: Result -->
+        <div class="step" id="step-10">
+            <div class="result-header">
+                <h2 class="result-title" id="resultTitle">Tu Plan de Lección</h2>
+                <p class="result-meta" id="resultMeta"></p>
+            </div>
+            
+            <div class="result-content" id="resultContent"></div>
+            
+            <div class="action-buttons">
+                <button class="action-btn" id="pdfBtn" onclick="downloadPDF()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    PDF
+                </button>
+                <button class="action-btn" onclick="downloadHTML()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    HTML
+                </button>
+                <button class="action-btn" onclick="copyToClipboard()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    Copiar
+                </button>
+                <button class="action-btn share-btn" id="shareBtn" onclick="shareLesson()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
+                    Compartir
+                </button>
+            </div>
+            
+            <div class="success-message" id="copySuccess">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>
+                ¡Copiado!
+            </div>
+            
+            <div class="success-message" id="shareSuccess">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg>
+                ¡Compartido con la comunidad!
+            </div>
+            
+            <div class="start-over">
+                <button class="nav-btn primary" onclick="startOver()" style="display: inline-flex; width: auto;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                    Crear Otra
+                </button>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div class="step" id="step-error">
+            <div class="error-container">
+                <div class="error-icon">😟</div>
+                <h3 class="error-title">Algo salió mal</h3>
+                <p class="error-text" id="errorText">Error de conexión</p>
+                <button class="nav-btn primary" onclick="generateLesson()">Intentar de Nuevo</button>
+            </div>
+            
+            <div class="step-nav" style="margin-top: 16px;">
+                <button class="nav-btn secondary" onclick="showStep(8)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    Atrás
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_URL = 'https://tooley-pwa-production.up.railway.app';
+        
+        let currentStep = 0;
+        let isQuickMode = false;
+        let lessonParams = {
+            subject: '', topic: '', ages: '9-11', duration: '45',
+            country: 'Global', materials: 'basic', style: 'mixed',
+            language: 'es'  // Spanish lessons
+        };
+        let generatedLesson = '';
+        
+        // Spanish topics
+        const TOPICS = {
+            'Matemáticas': ['Fracciones', 'Multiplicación', 'Suma', 'Figuras', 'Conteo', 'División', 'Patrones', 'Medición'],
+            'Ciencias': ['Ciclo del agua', 'Plantas', 'Animales', 'Imanes', 'Estados de la materia', 'Cuerpo humano', 'Clima', 'Máquinas simples'],
+            'Lectura': ['Fonética', 'Comprensión', 'Vocabulario', 'Elementos del cuento', 'Idea principal', 'Secuencia', 'Predicción', 'Personajes'],
+            'Lenguaje': ['Sustantivos', 'Verbos', 'Adjetivos', 'Oraciones', 'Puntuación', 'Escritura', 'Ortografía', 'Párrafos'],
+            'Estudios Sociales': ['Comunidad', 'Mapas', 'Historia', 'Cultura', 'Gobierno', 'Geografía', 'Ciudadanía', 'Familia'],
+            'Arte': ['Dibujo', 'Colores', 'Patrones', 'Escultura', 'Ritmo musical', 'Danza', 'Manualidades', 'Pintura']
+        };
+        
+        function showStep(step) {
+            if (step === 'error') {
+                document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+                document.getElementById('step-error').classList.add('active');
+                return;
+            }
+            currentStep = step;
+            document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+            document.getElementById(`step-${step}`).classList.add('active');
+            updateProgress();
+        }
+        
+        function updateProgress() {
+            const bar = document.getElementById('progressBar');
+            const steps = bar.querySelectorAll('.progress-step');
+            if (currentStep === 0 || currentStep > 7) {
+                bar.style.display = 'none';
+            } else {
+                bar.style.display = 'flex';
+                steps.forEach((step, i) => {
+                    step.classList.remove('active', 'completed');
+                    if (i < currentStep - 1) step.classList.add('completed');
+                    else if (i === currentStep - 1) step.classList.add('active');
+                });
+            }
+        }
+        
+        function prevStep() {
+            showStep(currentStep > 1 ? currentStep - 1 : 0);
+        }
+        
+        function startQuick() { isQuickMode = true; showStep(1); }
+        function startCustom() { isQuickMode = false; showStep(1); }
+        
+        function selectSubject(subject) {
+            lessonParams.subject = subject;
+            highlightSelected(event.currentTarget);
+            const suggestions = TOPICS[subject] || [];
+            document.getElementById('topicSuggestions').innerHTML = suggestions.map(t => 
+                `<button class="topic-chip" onclick="selectTopic('${t}')">${t}</button>`
+            ).join('');
+            if (isQuickMode) {
+                lessonParams.topic = suggestions[Math.floor(Math.random() * suggestions.length)] || 'General';
+                updateSummary();
+                setTimeout(() => showStep(8), 150);
+            } else {
+                setTimeout(() => showStep(2), 150);
+            }
+        }
+        
+        function selectTopic(topic) {
+            lessonParams.topic = topic;
+            setTimeout(() => showStep(3), 150);
+        }
+        
+        function submitCustomTopic() {
+            const input = document.getElementById('topicInput').value.trim();
+            if (input.length >= 2) {
+                lessonParams.topic = input;
+                showStep(3);
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('topicInput');
+            const btn = document.getElementById('topicGoBtn');
+            input.addEventListener('input', () => btn.disabled = input.value.trim().length < 2);
+            input.addEventListener('keypress', e => {
+                if (e.key === 'Enter' && input.value.trim().length >= 2) submitCustomTopic();
+            });
+        });
+        
+        function selectAges(ages) {
+            lessonParams.ages = ages;
+            highlightSelected(event.currentTarget);
+            setTimeout(() => showStep(4), 150);
+        }
+        
+        function selectDuration(duration) {
+            lessonParams.duration = duration;
+            highlightSelected(event.currentTarget);
+            setTimeout(() => showStep(5), 150);
+        }
+        
+        function selectCountry(country) {
+            lessonParams.country = country;
+            highlightSelected(event.currentTarget);
+            setTimeout(() => showStep(6), 150);
+        }
+        
+        function selectMaterials(materials) {
+            lessonParams.materials = materials;
+            highlightSelected(event.currentTarget);
+            setTimeout(() => showStep(7), 150);
+        }
+        
+        function selectStyle(style) {
+            lessonParams.style = style;
+            highlightSelected(event.currentTarget);
+            updateSummary();
+            setTimeout(() => showStep(8), 150);
+        }
+        
+        function highlightSelected(btn) {
+            const container = btn.closest('.options-grid, .compact-options, .country-grid');
+            if (container) container.querySelectorAll('button').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+        }
+        
+        function updateSummary() {
+            const grid = document.getElementById('summaryGrid');
+            const materialsMap = { none: 'Sin materiales', basic: 'Materiales básicos', standard: 'Aula completa' };
+            grid.innerHTML = `
+                <div class="summary-item"><span class="summary-icon">📚</span><div><div class="summary-label">Materia</div><div class="summary-value">${lessonParams.subject}</div></div></div>
+                <div class="summary-item"><span class="summary-icon">📝</span><div><div class="summary-label">Tema</div><div class="summary-value">${lessonParams.topic}</div></div></div>
+                <div class="summary-item"><span class="summary-icon">👤</span><div><div class="summary-label">Edades</div><div class="summary-value">${lessonParams.ages} años</div></div></div>
+                <div class="summary-item"><span class="summary-icon">⏱️</span><div><div class="summary-label">Duración</div><div class="summary-value">${lessonParams.duration} min</div></div></div>
+                <div class="summary-item"><span class="summary-icon">📍</span><div><div class="summary-label">Ubicación</div><div class="summary-value">${lessonParams.country}</div></div></div>
+                <div class="summary-item"><span class="summary-icon">📦</span><div><div class="summary-label">Materiales</div><div class="summary-value">${materialsMap[lessonParams.materials]}</div></div></div>
+            `;
+        }
+        
+        async function generateLesson() {
+            showStep(9);
+            try {
+                const response = await fetch(`${API_URL}/api/lesson`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(lessonParams)
+                });
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || 'Error de API');
+                }
+                const data = await response.json();
+                generatedLesson = data.lesson;
+                displayResult();
+                showStep(10);
+            } catch (error) {
+                console.error('Error de generación:', error);
+                document.getElementById('errorText').textContent = error.message || 'No se pudo generar la lección.';
+                showStep('error');
+            }
+        }
+        
+        function displayResult() {
+            document.getElementById('resultTitle').textContent = lessonParams.topic;
+            document.getElementById('resultMeta').textContent = `${lessonParams.subject} · Edades ${lessonParams.ages} · ${lessonParams.duration} min`;
+            let html = generatedLesson
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
+                .replace(/\n\n/g, '</p><p>');
+            document.getElementById('resultContent').innerHTML = `<p>${html}</p>`;
+        }
+        
+        async function downloadPDF() {
+            const btn = document.getElementById('pdfBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10"/></svg> Creando...';
+            btn.classList.add('loading');
+            
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                const amber = [217, 119, 6];
+                const navy = [15, 23, 42];
+                const amberPale = [255, 251, 235];
+                
+                // Header
+                doc.setFillColor(...amber);
+                doc.rect(10, 10, 4, 12, 'F');
+                doc.setFontSize(18);
+                doc.setTextColor(...amber);
+                doc.setFont('helvetica', 'bold');
+                doc.text('tooley', 18, 19);
+                doc.setFontSize(9);
+                doc.setTextColor(100, 100, 100);
+                doc.setFont('helvetica', 'normal');
+                doc.text('tooley.app', 200, 16, { align: 'right' });
+                
+                // Specs box
+                const specsY = 30;
+                doc.setFillColor(...amberPale);
+                doc.setDrawColor(...navy);
+                doc.rect(10, specsY, 190, 38, 'FD');
+                doc.setFontSize(9);
+                doc.setTextColor(...amber);
+                doc.setFont('helvetica', 'bold');
+                doc.text('ESPECIFICACIONES DE LA LECCIÓN', 15, specsY + 8);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(...navy);
+                doc.text(`Materia: ${lessonParams.subject}`, 15, specsY + 16);
+                doc.text(`Tema: ${lessonParams.topic}`, 15, specsY + 22);
+                doc.text(`Edades: ${lessonParams.ages} años`, 15, specsY + 28);
+                doc.text(`Duración: ${lessonParams.duration} min`, 110, specsY + 16);
+                doc.text(`Ubicación: ${lessonParams.country}`, 110, specsY + 22);
+                
+                // Content
+                let y = specsY + 48;
+                doc.setFontSize(10);
+                doc.setTextColor(...navy);
+                
+                const lines = generatedLesson.split('\n');
+                for (const line of lines) {
+                    if (y > 270) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    
+                    const trimmed = line.trim();
+                    if (!trimmed) { y += 4; continue; }
+                    
+                    if (trimmed.startsWith('## ')) {
+                        y += 6;
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(12);
+                        doc.setTextColor(...amber);
+                        doc.text(trimmed.replace('## ', ''), 10, y);
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(10);
+                        doc.setTextColor(...navy);
+                        y += 8;
+                    } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+                        doc.setFont('helvetica', 'bold');
+                        const text = trimmed.replace(/\*\*/g, '');
+                        const splitText = doc.splitTextToSize(text, 180);
+                        doc.text(splitText, 10, y);
+                        y += splitText.length * 5 + 2;
+                        doc.setFont('helvetica', 'normal');
+                    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+                        const text = '• ' + trimmed.substring(2);
+                        const splitText = doc.splitTextToSize(text, 175);
+                        doc.text(splitText, 15, y);
+                        y += splitText.length * 5 + 1;
+                    } else {
+                        const cleanText = trimmed.replace(/\*\*(.+?)\*\*/g, '$1');
+                        const splitText = doc.splitTextToSize(cleanText, 180);
+                        doc.text(splitText, 10, y);
+                        y += splitText.length * 5 + 1;
+                    }
+                }
+                
+                // Footer
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(8);
+                    doc.setTextColor(128, 128, 128);
+                    doc.text('Generado por Tooley | tooley.app | Gratis para todos los docentes', 105, 290, { align: 'center' });
+                    doc.text(`Página ${i} de ${pageCount}`, 200, 290, { align: 'right' });
+                }
+                
+                const filename = `tooley-${lessonParams.topic.toLowerCase().replace(/\s+/g, '-')}.pdf`;
+                doc.save(filename);
+                
+                btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M20 6L9 17l-5-5"/></svg> ¡Listo!';
+                setTimeout(() => { btn.innerHTML = originalText; btn.classList.remove('loading'); }, 2000);
+                
+            } catch (error) {
+                console.error('Error de PDF:', error);
+                btn.innerHTML = originalText;
+                btn.classList.remove('loading');
+                alert('Error al crear PDF. Intenta con HTML o Copiar.');
+            }
+        }
+        
+        function downloadHTML() {
+            const materialsMap = { none: 'Sin materiales', basic: 'Materiales básicos', standard: 'Aula completa' };
+            const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${lessonParams.topic} - Plan de Lección</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; color: #0f172a; line-height: 1.6; }
+        .header { border-bottom: 3px solid #d97706; padding-bottom: 16px; margin-bottom: 24px; }
+        .logo { color: #d97706; font-size: 28px; font-weight: 700; }
+        .specs { background: #fffbeb; padding: 20px; border-radius: 12px; margin-bottom: 24px; border-left: 4px solid #f59e0b; }
+        .specs-title { color: #d97706; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+        .specs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .spec { font-size: 14px; }
+        .spec strong { color: #334155; }
+        h2 { color: #d97706; font-size: 18px; margin: 28px 0 12px; border-bottom: 2px solid #fef3c7; padding-bottom: 8px; }
+        p { margin-bottom: 12px; }
+        ul, ol { margin: 12px 0 12px 24px; }
+        li { margin-bottom: 8px; }
+        strong { color: #1e293b; }
+        .footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; color: #64748b; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="header"><div class="logo">tooley</div></div>
+    <div class="specs">
+        <div class="specs-title">Especificaciones de la Lección</div>
+        <div class="specs-grid">
+            <div class="spec"><strong>Materia:</strong> ${lessonParams.subject}</div>
+            <div class="spec"><strong>Tema:</strong> ${lessonParams.topic}</div>
+            <div class="spec"><strong>Edades:</strong> ${lessonParams.ages} años</div>
+            <div class="spec"><strong>Duración:</strong> ${lessonParams.duration} minutos</div>
+            <div class="spec"><strong>Ubicación:</strong> ${lessonParams.country}</div>
+            <div class="spec"><strong>Materiales:</strong> ${materialsMap[lessonParams.materials]}</div>
+        </div>
+    </div>
+    <div class="content">
+        ${generatedLesson
+            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^- (.+)$/gm, '<li>$1</li>')
+            .replace(/\n\n/g, '</p><p>')}
+    </div>
+    <div class="footer">Generado por Tooley · tooley.app · Gratis para todos los docentes</div>
+</body>
+</html>`;
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tooley-${lessonParams.topic.toLowerCase().replace(/\s+/g, '-')}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        
+        function copyToClipboard() {
+            navigator.clipboard.writeText(generatedLesson).then(() => {
+                const msg = document.getElementById('copySuccess');
+                msg.style.display = 'flex';
+                setTimeout(() => msg.style.display = 'none', 2000);
+            });
+        }
+        
+        async function shareLesson() {
+            const btn = document.getElementById('shareBtn');
+            if (btn.classList.contains('shared')) return;
+            
+            btn.classList.add('loading');
+            btn.innerHTML = '<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> ...';
+            
+            try {
+                const response = await fetch('/api/share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        subject: lessonParams.subject,
+                        topic: lessonParams.topic,
+                        ages: lessonParams.ages,
+                        duration: lessonParams.duration,
+                        country: lessonParams.country,
+                        teacher_name: 'Anonymous',
+                        language: 'es'
+                    })
+                });
+                
+                if (response.ok) {
+                    btn.classList.remove('loading');
+                    btn.classList.add('shared');
+                    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg> Compartido';
+                    
+                    const msg = document.getElementById('shareSuccess');
+                    msg.style.display = 'flex';
+                    setTimeout(() => msg.style.display = 'none', 3000);
+                } else {
+                    throw new Error('Share failed');
+                }
+            } catch (e) {
+                btn.classList.remove('loading');
+                btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg> Compartir';
+                alert('Error al compartir. Intenta de nuevo.');
+            }
+        }
+        
+        function startOver() {
+            lessonParams = { subject: '', topic: '', ages: '9-11', duration: '45', country: 'Global', materials: 'basic', style: 'mixed', language: 'es' };
+            generatedLesson = '';
+            document.getElementById('topicInput').value = '';
+            document.querySelectorAll('.selected').forEach(b => b.classList.remove('selected'));
+            // Reset share button
+            const shareBtn = document.getElementById('shareBtn');
+            shareBtn.classList.remove('shared');
+            shareBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg> Compartir';
+            showStep(0);
+        }
+        
+        updateProgress();
+    </script>
+</body>
+</html>
