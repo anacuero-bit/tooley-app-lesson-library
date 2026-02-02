@@ -1,21 +1,27 @@
 """
-Tooley Web API
-Lightweight backend for the Tooley PWA.
+TOOLEY API - api.py
+Version: 1.2.0
+Updated: 2026-02-02
 
-Version: 1.1.0
-Last Updated: 2026-01-30
+CHANGELOG:
+v1.2.0 (2026-02-02)
+- Added `language` parameter for Spanish support
+- Lesson generation now respects language (en/es)
+- System prompt updated for multilingual output
+
+v1.1.0 (2026-01-30)
+- Added `style` parameter to LessonRequest model
+
+v1.0.0 (2026-01-29)
+- Initial release
 
 Endpoints:
 - POST /api/lesson - Generate a lesson plan
 - POST /api/pdf - Generate PDF from lesson content
 - GET /api/health - Health check
 
-Deploy as second Railway service from same repo as bot.
+Deploy to Railway:
 Start command: uvicorn api:app --host 0.0.0.0 --port $PORT
-
-Changelog:
-- 1.1.0: Added style parameter support
-- 1.0.0: Initial release
 """
 
 import os
@@ -35,19 +41,19 @@ from fpdf import FPDF
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Environment - same key as bot
+# Environment
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY') or os.environ.get('CLAUDE_API_KEY')
 if not ANTHROPIC_API_KEY:
     raise ValueError("ANTHROPIC_API_KEY or CLAUDE_API_KEY required")
 
 # Initialize
-app = FastAPI(title="Tooley API", version="1.1.0")
+app = FastAPI(title="Tooley API", version="1.2.0")
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 # CORS - allow web app
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: Restrict to tooley.app in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -65,7 +71,8 @@ class LessonRequest(BaseModel):
     duration: str = "45"
     country: str = "Global"
     materials: str = "basic"
-    style: str = "mixed"  # NEW: teaching style parameter
+    style: str = "mixed"
+    language: str = "en"  # NEW: 'en' or 'es'
 
 
 class PDFRequest(BaseModel):
@@ -78,60 +85,117 @@ class PDFRequest(BaseModel):
 
 
 # ============================================================================
-# LESSON GENERATION (Same prompts as Telegram bot)
+# LESSON GENERATION
 # ============================================================================
 
-LESSON_SYSTEM_PROMPT = """You are Tooley, an expert educational assistant helping teachers create lesson plans.
+LESSON_SYSTEM_PROMPT_EN = """You are Tooley, an expert educational assistant helping teachers create lesson plans.
 Generate clear, practical lesson plans that teachers can immediately use.
 Focus on active learning, student engagement, and real-world connections.
 Write in clear, simple English. Use numbered steps and bullet points for clarity.
 Every section MUST have substantive content - never leave a section empty."""
 
+LESSON_SYSTEM_PROMPT_ES = """Eres Tooley, un asistente educativo experto que ayuda a docentes a crear planes de lección.
+Genera planes de lección claros y prácticos que los docentes puedan usar inmediatamente.
+Enfócate en el aprendizaje activo, la participación de los estudiantes y las conexiones con el mundo real.
+Escribe en español claro y sencillo. Usa pasos numerados y viñetas para mayor claridad.
+Cada sección DEBE tener contenido sustancial - nunca dejes una sección vacía."""
+
 
 def build_lesson_prompt(params: LessonRequest) -> str:
-    materials_desc = {
-        'none': 'NO MATERIALS - use only verbal activities, movement, imagination',
-        'basic': 'Basic materials - paper, pencils, blackboard',
-        'standard': 'Full classroom supplies available'
-    }
+    lang = params.language
     
-    style_desc = {
-        'interactive': 'Use highly interactive methods with games, group work, movement, and hands-on activities. Minimize lecture time.',
-        'structured': 'Use traditional structured approach with clear teacher-led instruction, note-taking, and individual practice.',
-        'storytelling': 'Use story-based learning with narratives, characters, and scenario-based activities to teach concepts.',
-        'mixed': 'Use a balanced mix of interactive activities and direct instruction appropriate for the content.'
-    }
+    # Materials descriptions
+    if lang == 'es':
+        materials_desc = {
+            'none': 'SIN MATERIALES - usar solo actividades verbales, movimiento, imaginación',
+            'basic': 'Materiales básicos - papel, lápices, pizarra',
+            'standard': 'Útiles completos de aula disponibles'
+        }
+        style_desc = {
+            'interactive': 'Usa métodos altamente interactivos con juegos, trabajo en grupo, movimiento y actividades prácticas.',
+            'structured': 'Usa un enfoque estructurado dirigido por el docente con instrucciones claras paso a paso.',
+            'storytelling': 'Usa narrativa y cuentos para enseñar conceptos, creando personajes y escenarios.',
+            'mixed': 'Equilibra diferentes estilos de enseñanza según la actividad.'
+        }
+    else:
+        materials_desc = {
+            'none': 'NO MATERIALS - use only verbal activities, movement, imagination',
+            'basic': 'Basic materials - paper, pencils, blackboard',
+            'standard': 'Full classroom supplies available'
+        }
+        style_desc = {
+            'interactive': 'Use highly interactive methods with games, group work, movement, and hands-on activities.',
+            'structured': 'Use a structured teacher-led approach with clear step-by-step instructions.',
+            'storytelling': 'Use narrative and storytelling to teach concepts, creating characters and scenarios.',
+            'mixed': 'Balance different teaching styles as appropriate for each activity.'
+        }
     
-    return f"""Create a {params.duration}-minute lesson plan on **{params.topic}** for {params.subject}.
-Students are ages {params.ages}. Location: {params.country}
-Materials: {materials_desc.get(params.materials, params.materials)}
-Teaching Style: {style_desc.get(params.style, style_desc['mixed'])}
+    mat = materials_desc.get(params.materials, materials_desc['basic'])
+    sty = style_desc.get(params.style, style_desc['mixed'])
+    
+    if lang == 'es':
+        return f"""Crea un plan de lección detallado con estas especificaciones:
 
-Structure with these sections (all must have content):
+**Materia:** {params.subject}
+**Tema:** {params.topic}
+**Edades de los estudiantes:** {params.ages} años
+**Duración:** {params.duration} minutos
+**Ubicación/Contexto:** {params.country}
+**Materiales disponibles:** {mat}
+**Estilo de enseñanza:** {sty}
 
+Formatea tu respuesta como un plan de lección completo con estas secciones:
+## Objetivos de Aprendizaje
+## Materiales Necesarios
+## Introducción de la Lección ({int(int(params.duration) * 0.15)} min)
+## Actividad Principal ({int(int(params.duration) * 0.6)} min)
+## Cierre y Evaluación ({int(int(params.duration) * 0.25)} min)
+## Consejos de Diferenciación
+
+Pautas:
+- Usa ejemplos culturalmente relevantes para {params.country}
+- Mantén el lenguaje claro y accesible
+- Incluye actividades específicas, no solo descripciones
+- Agrega tiempo para cada sección
+- Sugiere adaptaciones para diferentes niveles de habilidad
+
+## Preguntas de Comprensión
+1. [Pregunta con respuesta]
+2. [Pregunta con respuesta]
+3. [Pregunta con respuesta]
+
+## Consejos para el Docente
+- [Consejo 1]
+- [Consejo 2]
+
+CRÍTICO: Cada sección debe tener contenido real."""
+    else:
+        return f"""Create a detailed lesson plan with these specifications:
+
+**Subject:** {params.subject}
+**Topic:** {params.topic}
+**Student Ages:** {params.ages} years old
+**Duration:** {params.duration} minutes
+**Location/Context:** {params.country}
+**Available Materials:** {mat}
+**Teaching Style:** {sty}
+
+Format your response as a complete lesson plan with these sections:
 ## Learning Objectives
-[3 specific, measurable objectives]
-
 ## Materials Needed
-[List all required materials]
+## Lesson Introduction ({int(int(params.duration) * 0.15)} min)
+## Main Activity ({int(int(params.duration) * 0.6)} min)
+## Wrap-Up & Assessment ({int(int(params.duration) * 0.25)} min)
+## Differentiation Tips
 
-## Warm-Up (5 minutes)
-[Specific activity with exact questions]
+Guidelines:
+- Use culturally relevant examples for {params.country}
+- Keep language clear and accessible
+- Include specific activities, not just descriptions
+- Add timing for each section
+- Suggest adaptations for different skill levels
 
-## Main Lesson ({int(params.duration) - 15} minutes)
-[Detailed step-by-step with timing]
-
-## Practice Activity
-[Complete activity description]
-
-## Closing (3 minutes)
-[Wrap-up questions]
-
-## Differentiation
-**For students who need support:** [Strategies]
-**For advanced students:** [Extensions]
-
-## Assessment Questions
+## Comprehension Questions
 1. [Question with answer]
 2. [Question with answer]
 3. [Question with answer]
@@ -145,24 +209,36 @@ CRITICAL: Every section must have real content."""
 
 def generate_lesson(params: LessonRequest) -> str:
     prompt = build_lesson_prompt(params)
-    logger.info(f"Generating lesson: {params.subject} - {params.topic} (style: {params.style})")
+    system_prompt = LESSON_SYSTEM_PROMPT_ES if params.language == 'es' else LESSON_SYSTEM_PROMPT_EN
+    
+    logger.info(f"Generating lesson: {params.subject} - {params.topic} (lang: {params.language}, style: {params.style})")
     
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=3000,
-        system=LESSON_SYSTEM_PROMPT,
+        system=system_prompt,
         messages=[{"role": "user", "content": prompt}]
     )
     return response.content[0].text
 
 
 # ============================================================================
-# PDF GENERATION (Same as Telegram bot)
+# PDF GENERATION
 # ============================================================================
 
 def ascii_only(text: str) -> str:
     """Strip non-ASCII characters for PDF safety"""
-    return ''.join(c if ord(c) < 128 else ' ' for c in str(text))
+    replacements = {
+        'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ú': 'u',
+        'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
+        'ñ': 'n', 'Ñ': 'N', 'ü': 'u', 'Ü': 'U',
+        '¿': '?', '¡': '!', '–': '-', '—': '-',
+        '"': '"', '"': '"', ''': "'", ''': "'"
+    }
+    result = text
+    for old, new in replacements.items():
+        result = result.replace(old, new)
+    return ''.join(c if ord(c) < 128 else ' ' for c in result)
 
 
 def create_pdf(content: str, params: dict) -> BytesIO:
@@ -197,54 +273,55 @@ def create_pdf(content: str, params: dict) -> BytesIO:
         if params.get('country'): spec_lines.append(f"Location: {params['country']}")
         
         if spec_lines:
-            box_h = 10 + len(spec_lines) * 6
-            pdf.rect(10, specs_y, 190, box_h, 'DF')
-            pdf.set_xy(15, specs_y + 4)
+            box_height = 8 + len(spec_lines) * 5
+            pdf.rect(10, specs_y, 190, box_height, 'FD')
+            pdf.set_xy(15, specs_y + 3)
             pdf.set_font('Helvetica', 'B', 9)
             pdf.set_text_color(217, 119, 6)
             pdf.cell(0, 5, 'LESSON SPECIFICATIONS')
-            pdf.ln(6)
             pdf.set_font('Helvetica', '', 9)
             pdf.set_text_color(15, 23, 42)
-            for spec in spec_lines:
-                pdf.set_x(15)
-                pdf.cell(0, 5, ascii_only(spec))
-                pdf.ln(5)
-            pdf.set_y(specs_y + box_h + 8)
+            for i, line in enumerate(spec_lines):
+                pdf.set_xy(15, specs_y + 8 + i * 5)
+                pdf.cell(0, 5, ascii_only(line))
+            pdf.set_y(specs_y + box_height + 10)
     
     # Content
     pdf.set_font('Helvetica', '', 10)
     pdf.set_text_color(15, 23, 42)
     
     for line in content.split('\n'):
-        safe = ascii_only(line)
-        if not safe.strip():
+        line = line.strip()
+        if not line:
             pdf.ln(3)
             continue
-        if safe.strip().startswith('##'):
-            pdf.ln(4)
+        
+        safe_line = ascii_only(line)
+        
+        if line.startswith('## '):
+            pdf.ln(5)
             pdf.set_font('Helvetica', 'B', 12)
-            pdf.multi_cell(0, 6, safe.replace('#', '').strip())
+            pdf.set_text_color(217, 119, 6)
+            pdf.multi_cell(0, 6, safe_line[3:])
             pdf.set_font('Helvetica', '', 10)
-        elif safe.strip().startswith('**') and safe.strip().endswith('**'):
-            pdf.ln(2)
+            pdf.set_text_color(15, 23, 42)
+        elif line.startswith('**') and line.endswith('**'):
             pdf.set_font('Helvetica', 'B', 10)
-            pdf.multi_cell(0, 5, safe.replace('*', ''))
+            pdf.multi_cell(0, 5, safe_line.replace('**', ''))
             pdf.set_font('Helvetica', '', 10)
-        elif safe.strip().startswith('- ') or safe.strip().startswith('* '):
-            pdf.set_x(15)
-            pdf.multi_cell(0, 5, '* ' + safe.strip()[2:])
+        elif line.startswith('- ') or line.startswith('* '):
+            pdf.multi_cell(0, 5, '  * ' + safe_line[2:])
         else:
-            pdf.multi_cell(0, 5, safe)
+            pdf.multi_cell(0, 5, safe_line.replace('**', ''))
     
     # Footer
-    pdf.set_y(-15)
+    pdf.set_y(-20)
     pdf.set_font('Helvetica', '', 8)
     pdf.set_text_color(128, 128, 128)
-    pdf.cell(0, 5, 'Generated by Tooley | tooley.app | Free for all teachers', align='C')
+    pdf.cell(0, 10, 'Generated by Tooley | tooley.app | Free for all teachers', align='C')
     
     buffer = BytesIO()
-    buffer.write(pdf.output())
+    pdf.output(buffer)
     buffer.seek(0)
     return buffer
 
@@ -255,43 +332,37 @@ def create_pdf(content: str, params: dict) -> BytesIO:
 
 @app.get("/")
 async def root():
-    return {"service": "Tooley API", "status": "ok", "docs": "/docs"}
+    return {"message": "Tooley API v1.2.0", "docs": "/docs"}
 
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "tooley-api", "version": "1.1.0"}
+    return {"status": "ok", "version": "1.2.0", "timestamp": datetime.utcnow().isoformat()}
 
 
 @app.post("/api/lesson")
 async def create_lesson(request: LessonRequest):
     try:
-        content = generate_lesson(request)
-        return {
-            "success": True,
-            "lesson": content,
-            "params": request.model_dump()
-        }
+        lesson = generate_lesson(request)
+        return {"lesson": lesson, "params": request.dict()}
     except Exception as e:
         logger.error(f"Lesson generation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/pdf")
-async def create_lesson_pdf(request: PDFRequest):
+async def create_pdf_endpoint(request: PDFRequest):
     try:
         params = {
-            "subject": request.subject,
-            "topic": request.topic,
-            "ages": request.ages,
-            "duration": request.duration,
-            "country": request.country
+            'subject': request.subject,
+            'topic': request.topic,
+            'ages': request.ages,
+            'duration': request.duration,
+            'country': request.country
         }
         pdf_buffer = create_pdf(request.content, params)
         
-        # Generate filename
-        topic_slug = (request.topic or "lesson").lower().replace(" ", "-")[:20]
-        filename = f"tooley-{topic_slug}-{datetime.now().strftime('%Y%m%d')}.pdf"
+        filename = f"tooley-lesson-{datetime.now().strftime('%Y%m%d-%H%M%S')}.pdf"
         
         return StreamingResponse(
             pdf_buffer,
@@ -303,11 +374,6 @@ async def create_lesson_pdf(request: PDFRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ============================================================================
-# RUN (for local dev - Railway uses uvicorn command)
-# ============================================================================
-
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
